@@ -1,0 +1,51 @@
+{
+  "configVersion": "v2",
+  "app": {
+    "appId": 20000,
+    "appName": "pupsik_chat",
+    "appType": "app",
+    "version": {
+      "code": 1,
+      "name": "1.0.1"
+    },
+    "icon": "icon.png",
+    "vender": "zepp",
+    "description": "empty app"
+  },
+  "permissions": [],
+  "runtime": {
+    "apiVersion": {
+      "compatible": "1.0.0",
+      "target": "1.0.1",
+      "minVersion": "1.0.0"
+    }
+  },
+  "targets": {
+    "194x368-amazfit-band-7": {
+      "module": {
+        "page": {
+          "pages": [
+            "page/index"
+          ]
+        },
+        "app-side": {
+          "path": "app-side/index"
+        }
+      },
+      "platforms": [
+        {
+          "name": "Bari(国际标准版本)",
+          "deviceSource": 254,
+          "chip": "DIALOG"
+        }
+      ],
+      "designWidth": 194
+    }
+  },
+  "i18n": {
+    "en-US": {
+      "appName": "pupsik_chat"
+    }
+  },
+  "defaultLanguage": "en-US"
+}
