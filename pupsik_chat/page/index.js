@@ -205,6 +205,20 @@ Page({
         chunks.push(textToSend.slice(i, i + 6))
       }
 
+      const fallbackDirectAsk = () => {
+        displayBox.setProperty(hmUI.prop.TEXT, "Думаю (0с)...")
+        messageBuilder.request({
+          method: "ASK_AI",
+          params: { prompt: textToSend, max_tokens: TOKEN_PRESETS[this.state.tokenIdx], model: selectedModel, chatId: this.state.currentChatId.slice(-6), jobId: myJobId, isRetry: isRetry ? 1 : 0, noContext: this.state.noContextMode ? 1 : 0 }
+        })
+          .then((data) => {
+            if (data && data.chatId) this.state.currentChatId = data.chatId
+            if (data && data.answer) { this.state.lastAnswerText = data.answer; showScrollableAnswer(data.answer, 0xf1f5f9) }
+            else setTimeout(() => pollAnswer(1), 1500)
+          })
+          .catch((err) => showScrollableAnswer("Сбой: " + String(err), 0xf87171))
+      }
+
       const sendNextChunk = (idx) => {
         if (idx >= chunks.length) {
           displayBox.setProperty(hmUI.prop.TEXT, "Думаю (0с)...")
@@ -217,24 +231,14 @@ Page({
               if (data && data.answer) { this.state.lastAnswerText = data.answer; showScrollableAnswer(data.answer, 0xf1f5f9) }
               else setTimeout(() => pollAnswer(1), 1500)
             })
-            .catch((err) => showScrollableAnswer("Сбой: " + String(err), 0xf87171))
+            .catch(() => fallbackDirectAsk())
           return
         }
+        let answered = false
+        const guard = setTimeout(() => { if (!answered) { answered = true; fallbackDirectAsk() } }, 1200)
         messageBuilder.request({ method: "ADD_PART", params: { p: chunks[idx], reset: idx === 0 ? 1 : 0 } })
-          .then(() => sendNextChunk(idx + 1))
-          .catch(() => {
-            displayBox.setProperty(hmUI.prop.TEXT, "Думаю (0с)...")
-            messageBuilder.request({
-              method: "ASK_AI",
-              params: { prompt: encodeURIComponent(textToSend), max_tokens: TOKEN_PRESETS[this.state.tokenIdx], model: selectedModel, chatId: this.state.currentChatId.slice(-6), jobId: myJobId, isRetry: isRetry ? 1 : 0, noContext: this.state.noContextMode ? 1 : 0 }
-            })
-              .then((data) => {
-                if (data && data.chatId) this.state.currentChatId = data.chatId
-                if (data && data.answer) { this.state.lastAnswerText = data.answer; showScrollableAnswer(data.answer, 0xf1f5f9) }
-                else setTimeout(() => pollAnswer(1), 1500)
-              })
-              .catch((err) => showScrollableAnswer("Сбой: " + String(err), 0xf87171))
-          })
+          .then(() => { if (!answered) { answered = true; clearTimeout(guard); sendNextChunk(idx + 1) } })
+          .catch(() => { if (!answered) { answered = true; clearTimeout(guard); fallbackDirectAsk() } })
       }
 
       sendNextChunk(0)
