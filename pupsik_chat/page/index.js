@@ -263,13 +263,7 @@ Page({
       messageBuilder.request({
         method: "ASK_AI",
         params: {
-          prompt: encodeURIComponent(
-            this.state.subjectMode
-              ? (this.state.subjectMode === "Литература"
-                  ? "Литературное произведение «" + textToSend + "» (назови автора, жанр, героев и смысл, не пиши про погоду)"
-                  : "Предмет " + this.state.subjectMode + ": " + textToSend)
-              : textToSend
-          ),
+          prompt: encodeURIComponent(textToSend),
           max_tokens: TOKEN_PRESETS[this.state.tokenIdx],
           model: selectedModel,
           chatId: this.state.currentChatId,

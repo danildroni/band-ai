@@ -123,9 +123,20 @@ AppSideService({
           chat.messages.pop(); chat.messages.pop()
         }
 
+        const wordsCnt = cleanPrompt.trim().split(/\s+/).length
+        let fullPrompt = cleanPrompt
+        if (wordsCnt <= 2 && !cleanPrompt.includes("?")) {
+          if (activeSubj === "Литература") {
+            fullPrompt = "Литературное произведение «" + cleanPrompt + "»: автор, жанр, главные герои и смысл. Не пиши про погоду."
+          } else if (activeSubj) {
+            fullPrompt = "Предмет " + activeSubj + ": объясни понятие «" + cleanPrompt + "» строго в рамках этой науки."
+          } else {
+            fullPrompt = "Что такое " + cleanPrompt + "? Дай краткое и точное объяснение."
+          }
+        }
         const history = chat.noContext
-          ? Array.of({ role: "user", content: cleanPrompt })
-          : chat.messages.slice(-8).concat(Array.of({ role: "user", content: cleanPrompt }))
+          ? Array.of({ role: "user", content: fullPrompt })
+          : chat.messages.slice(-8).concat(Array.of({ role: "user", content: fullPrompt }))
 
         const sysMsg = {
           role: "system",
