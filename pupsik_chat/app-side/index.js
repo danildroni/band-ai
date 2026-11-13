@@ -2,6 +2,7 @@ import { MessageBuilder } from "../shared/message"
 
 const messageBuilder = new MessageBuilder()
 const BASE_URL = "http://ВАШ_IP:1235"
+let promptBuffer = ""
 
 let memoryChats = null
 let activeJob = { id: "", done: false, answer: "", chatId: "" }
@@ -97,7 +98,6 @@ AppSideService({
         saveChats(chats)
         ctx.response({ data: { chats: chats.map((c) => ({ id: c.id, title: c.title })) } })
       }
-      let promptBuffer = ""
       if (jsonRpc.method === "ADD_PART") {
         if (jsonRpc.params.reset) promptBuffer = ""
         promptBuffer += String(jsonRpc.params.p || "")
