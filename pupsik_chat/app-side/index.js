@@ -30,7 +30,7 @@ const loadJob = () => {
 }
 
 const loadChats = () => {
-  if (memoryChats !== null) return memoryChats
+  memoryChats = null
   try {
     if (typeof settings !== "undefined" && settings.settingsStorage) {
       const raw = settings.settingsStorage.getItem("pupsik_chats")
@@ -156,11 +156,11 @@ AppSideService({
               : fullPrompt
             const history = chat.noContext
               ? Array.of({ role: "user", content: finalPrompt })
-              : chat.messages.slice(-8).concat(Array.of({ role: "user", content: finalPrompt }))
+              : chat.messages.slice(-16).concat(Array.of({ role: "user", content: finalPrompt }))
 
         const sysMsg = {
           role: "system",
-          content: "Ты русскоязычный справочник-ассистент на часах. Текущий год 2026. " + (activeSubj ? "ПРОФИЛЬ: " + activeSubj + ". Отвечай строго в рамках предмета " + activeSubj + ". " : "") + "ПИШИ ТОЛЬКО НА РУССКОМ КИРИЛЛИЦЕЙ без звёздочек, иероглифов и встречных вопросов."
+          content: "Ты русскоязычный справочник-ассистент на часах. Текущий год 2026. ОБЯЗАТЕЛЬНО учитывай все предыдущие сообщения и ответы в этом диалоге, связывая каждый новый запрос с общим контекстом переписки. ПИШИ ТОЛЬКО НА РУССКОМ КИРИЛЛИЦЕЙ без звёздочек, иероглифов и встречных вопросов."
         }
 
         fetch({
