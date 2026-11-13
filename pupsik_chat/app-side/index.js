@@ -53,23 +53,16 @@ AppSideService({
           .catch((err) => ctx.response({ data: { ok: false, msg: "Ошибка: " + String(err) } }))
       }
 
-      if (jsonRpc.method === "GET_CHATS") {
-        ctx.response({ data: { chats: memoryChats.map((c) => ({ id: c.id, title: c.title })) } })
-      }
-
+      if (jsonRpc.method === "GET_CHATS") ctx.response({ data: { chats: memoryChats.map((c) => ({ id: c.id, title: c.title })) } })
       if (jsonRpc.method === "OPEN_CHAT") {
         const found = memoryChats.find((c) => c.id === jsonRpc.params.chatId)
         ctx.response({ data: { transcript: found ? formatChatTranscript(found.messages) : "", lastPrompt: found ? getLastUserPrompt(found.messages) : "" } })
       }
-
       if (jsonRpc.method === "DELETE_CHAT") {
         memoryChats = memoryChats.filter((c) => c.id !== jsonRpc.params.chatId)
         ctx.response({ data: { chats: memoryChats.map((c) => ({ id: c.id, title: c.title })) } })
       }
-
-      if (jsonRpc.method === "CHECK_AI") {
-        ctx.response({ data: activeJob })
-      }
+      if (jsonRpc.method === "CHECK_AI") ctx.response({ data: activeJob })
 
       if (jsonRpc.method === "ASK_AI") {
         const cleanPrompt = decodeURIComponent(jsonRpc.params.prompt).toLowerCase()
@@ -132,9 +125,7 @@ AppSideService({
                 activeJob = { id: jobId, done: true, answer: "Пустой ответ от модели", chatId: chat.id }
               }
             })
-            .catch((err) => {
-              activeJob = { id: jobId, done: true, answer: "Ошибка сети ПК: " + String(err), chatId: chat.id }
-            })
+            .catch((err) => { activeJob = { id: jobId, done: true, answer: "Ошибка сети ПК: " + String(err), chatId: chat.id } })
         })
       }
     })
