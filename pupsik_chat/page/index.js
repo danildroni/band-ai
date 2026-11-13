@@ -56,15 +56,39 @@ Page({
       const slice = this.state.wrappedLines.slice(this.state.lineOffset, this.state.lineOffset + visibleLinesCount).join("\n")
       displayBox.setProperty(hmUI.prop.MORE, { x: 8, y: 50, w: 146, h: viewH, text: slice, text_size: 16, color: color || 0xffffff })
     }
-    const scrollUpBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 158, y: 52, w: 32, h: Math.floor(viewH / 2) - 4, radius: 8, color: 0x222a35 })
-    const scrollUpBtn = hmUI.createWidget(hmUI.widget.TEXT, { x: 158, y: 52, w: 32, h: Math.floor(viewH / 2) - 4, text: "^", text_size: 20, color: 0x00ff88, align_h: hmUI.align.CENTER_H, align_v: hmUI.align.CENTER_V })
-    const scrollDnBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 158, y: 52 + Math.floor(viewH / 2) + 2, w: 32, h: Math.floor(viewH / 2) - 4, radius: 8, color: 0x222a35 })
-    const scrollDnBtn = hmUI.createWidget(hmUI.widget.TEXT, { x: 158, y: 52 + Math.floor(viewH / 2) + 2, w: 32, h: Math.floor(viewH / 2) - 4, text: "v", text_size: 18, color: 0x00ff88, align_h: hmUI.align.CENTER_H, align_v: hmUI.align.CENTER_V })
-    const toggleScrollButtons = (show) => { scrollUpBg.setProperty(hmUI.prop.VISIBLE, show); scrollUpBtn.setProperty(hmUI.prop.VISIBLE, show); scrollDnBg.setProperty(hmUI.prop.VISIBLE, show); scrollDnBtn.setProperty(hmUI.prop.VISIBLE, show) }
+    const scrollUpBtn = hmUI.createWidget(hmUI.widget.BUTTON, {
+      x: 158, y: 52, w: 33, h: Math.floor(viewH / 2) - 4, text: "^", text_size: 20, radius: 8,
+      normal_color: 0x222a35, press_color: 0x3b4d63,
+      click_func: () => {
+        if (!this.state.isReading) return
+        this.state.lineOffset = Math.max(0, this.state.lineOffset - Math.max(2, visibleLinesCount - 2))
+        renderVisibleSlice(0xffffff)
+      }
+    })
+    const scrollDnBtn = hmUI.createWidget(hmUI.widget.BUTTON, {
+      x: 158, y: 52 + Math.floor(viewH / 2) + 2, w: 33, h: Math.floor(viewH / 2) - 4, text: "v", text_size: 18, radius: 8,
+      normal_color: 0x222a35, press_color: 0x3b4d63,
+      click_func: () => {
+        if (!this.state.isReading) return
+        const maxOffset = Math.max(0, this.state.wrappedLines.length - visibleLinesCount)
+        this.state.lineOffset = Math.min(maxOffset, this.state.lineOffset + Math.max(2, visibleLinesCount - 2))
+        renderVisibleSlice(0xffffff)
+      }
+    })
+    const toggleScrollButtons = (show) => {
+      scrollUpBtn.setProperty(hmUI.prop.VISIBLE, show)
+      scrollDnBtn.setProperty(hmUI.prop.VISIBLE, show)
+    }
     toggleScrollButtons(false)
-    scrollUpBtn.addEventListener(hmUI.event.CLICK_UP, () => { if (!this.state.isReading) return; this.state.lineOffset = Math.max(0, this.state.lineOffset - Math.max(2, visibleLinesCount - 2)); renderVisibleSlice(0xffffff) })
-    scrollDnBtn.addEventListener(hmUI.event.CLICK_UP, () => { if (!this.state.isReading) return; const maxOffset = Math.max(0, this.state.wrappedLines.length - visibleLinesCount); this.state.lineOffset = Math.min(maxOffset, this.state.lineOffset + Math.max(2, visibleLinesCount - 2)); renderVisibleSlice(0xffffff) })
-    const showScrollableAnswer = (text, color) => { this.state.wrappedLines = wrapTextToLines(text, 15); this.state.lineOffset = 0; this.state.isReading = true; renderVisibleSlice(color); toggleScrollButtons(this.state.wrappedLines.length > visibleLinesCount) }
+
+    const showScrollableAnswer = (text, color) => {
+      this.state.wrappedLines = wrapTextToLines(text, 15)
+      this.state.lineOffset = Math.max(0, this.state.wrappedLines.length - visibleLinesCount)
+      this.state.isReading = true
+      renderVisibleSlice(color)
+      toggleScrollButtons(this.state.wrappedLines.length > visibleLinesCount)
+    }
+
     const newChatMenuBtn = hmUI.createWidget(hmUI.widget.BUTTON, {
       x: 6, y: 52, w: 182, h: 42, text: "+ НОВЫЙ ЧАТ", text_size: 15, radius: 10,
       normal_color: 0x1155cc, press_color: 0x2277ff,
@@ -164,16 +188,17 @@ Page({
     const sendPromptToAI = (textToSend, isRetry) => {
       this.state.lastPrompt = textToSend; this.state.isReading = false; toggleScrollButtons(false)
       const selectedModel = this.state.models[this.state.modelIdx]
+      const myJobId = String(Date.now())
       toggleKeyboard(false); toggleAnswerControls(false)
       displayBox.setProperty(hmUI.prop.MORE, { x: 8, y: 50, w: 174, h: viewH, text: "Думаю (до 10с)...", text_size: 16, color: 0xffffff })
 
       const pollAnswer = (attempt) => {
-        if (attempt > 8) {
+        if (attempt > 10) {
           showScrollableAnswer("Нажмите ПОВ", 0xffffff); toggleAnswerControls(true); return
         }
         displayBox.setProperty(hmUI.prop.TEXT, "Жду ответ (" + attempt + ")...")
         messageBuilder.request({ method: "CHECK_AI" }).then((st) => {
-          if (st && st.done && st.answer) {
+          if (st && st.done && st.id === myJobId && st.answer) {
             showScrollableAnswer(st.answer, 0xffffff); toggleAnswerControls(true)
           } else {
             pollAnswer(attempt + 1)
@@ -183,7 +208,7 @@ Page({
 
       messageBuilder.request({
         method: "ASK_AI",
-        params: { prompt: encodeURIComponent(textToSend), model: selectedModel, chatId: this.state.currentChatId, isRetry: Boolean(isRetry), noContext: Boolean(this.state.noContextMode) }
+        params: { prompt: encodeURIComponent(textToSend), model: selectedModel, chatId: this.state.currentChatId, jobId: myJobId, isRetry: Boolean(isRetry), noContext: Boolean(this.state.noContextMode) }
       }).then((data) => {
         if (data && data.chatId) this.state.currentChatId = data.chatId
         if (data && data.answer) {
