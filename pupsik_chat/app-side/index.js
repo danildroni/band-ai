@@ -128,9 +128,10 @@ AppSideService({
         let chats = loadChats()
         let chat = chats.find((c) => c.id === chatId)
         if (!chat) {
-          chat = { id: chatId, title: (subject ? "[" + subject.slice(0, 3) + "] " : (noContext ? "[Б] " : "")) + cleanPrompt.slice(0, 10), noContext: noContext, messages: [] }
+          chat = { id: chatId, title: (subject ? "[" + subject.slice(0, 3) + "] " : (noContext ? "[Б] " : "")) + cleanPrompt.slice(0, 10), noContext: noContext, subject: subject, messages: [] }
           chats.unshift(chat)
         }
+        const activeSubj = subject || chat.subject || ""
         if (isRetry && chat.messages.length >= 2 && chat.messages[chat.messages.length - 1].role === "assistant") {
           chat.messages.pop(); chat.messages.pop()
         }
@@ -140,7 +141,8 @@ AppSideService({
         const isShortFollowUp = !chat.noContext && chat.messages.length > 0 && wordsCount <= 3
         const prevUserQ = isShortFollowUp ? getLastUserPrompt(chat.messages) : ""
         const baseQ = isShortFollowUp ? (prevUserQ + " " + cleanPrompt).trim() : cleanPrompt
-        const searchQuery = (subject && !isEnglishOnly) ? (baseQ + " " + subject).trim() : baseQ
+        const isLit = activeSubj === "Литература"
+        const searchQuery = (activeSubj && !isEnglishOnly) ? (isLit ? ("произведение " + baseQ + " пьеса роман автор") : (baseQ + " " + activeSubj)).trim() : baseQ
         const contextPromise = isEnglishOnly ? Promise.resolve("") : searchWebContext(searchQuery)
 
         contextPromise.then((webInfo) => {
@@ -148,19 +150,22 @@ AppSideService({
           if (isEnglishOnly) {
             expandedPrompt = "Переведи на русский язык: " + cleanPrompt
           } else if (isShortFollowUp) {
-            expandedPrompt = "Уточнение к предыдущему вопросу в диалоге: " + cleanPrompt + ". Раскрой предыдущую тему с учётом этого уточнения, не давая определение самого слова."
+            expandedPrompt = "Уточнение к предыдущему вопросу в диалоге: " + cleanPrompt + ". Раскрой предыдущую тему" + (activeSubj ? " в рамках предмета «" + activeSubj + "»" : "") + " с учётом этого уточнения."
           } else if (wordsCount <= 2 && !cleanPrompt.includes("?")) {
-            expandedPrompt = subject
-              ? "Предмет: " + subject + ". Объясни, что означает «" + cleanPrompt + "» именно в рамках предмета " + subject + " (произведение, автор, термин или явление из этой науки)."
-              : "Что такое " + cleanPrompt + "? Дай подробное, точное и понятное объяснение на русском языке."
-          } else if (subject && !isEnglishOnly) {
-            expandedPrompt = "Предмет: " + subject + ". Вопрос: " + cleanPrompt
+            if (isLit) {
+              expandedPrompt = "Литературное произведение «" + cleanPrompt + "»: назови автора, жанр, год написания, главных героев и главную идею произведения. Не пиши про природные или погодные явления."
+            } else if (activeSubj) {
+              expandedPrompt = "Школьный предмет: " + activeSubj + ". Объясни термин, закон или понятие «" + cleanPrompt + "» строго в рамках науки «" + activeSubj + "»."
+            } else {
+              expandedPrompt = "Что такое " + cleanPrompt + "? Дай подробное, точное и понятное объяснение на русском языке."
+            }
+          } else if (activeSubj && !isEnglishOnly) {
+            expandedPrompt = "Школьный предмет: " + activeSubj + ". Вопрос: " + cleanPrompt
           }
 
-          const retryHint = isRetry ? " (сформулируй ответ заново, другими словами)" : ""
           const userContent = webInfo
-            ? "Справка:\n" + webInfo.slice(0, 700) + "\n\nВопрос: " + expandedPrompt + retryHint
-            : expandedPrompt + retryHint
+            ? "Справка:\n" + webInfo.slice(0, 700) + "\n\nВопрос: " + expandedPrompt
+            : expandedPrompt
 
           const history = chat.noContext
             ? Array.of({ role: "user", content: userContent })
@@ -168,7 +173,7 @@ AppSideService({
 
           const sysMsg = {
             role: "system",
-            content: "Ты русскоязычный справочник-ассистент на часах. Текущий год 2026. " + (subject ? "ПРОФИЛЬ ЧАТА: " + subject + ". Отвечай строго как эксперт и репетитор по предмету " + subject + ", приводи точные формулы, правила, даты или пошаговое решение без воды. " : "") + "ПИШИ ТОЛЬКО НА РУССКОМ КИРИЛЛИЦЕЙ (кроме английских слов при изучении английского) без звёздочек и вступлений. НИКОГДА не задавай встречных вопросов пользователю."
+            content: "Ты русскоязычный справочник-ассистент на часах. Текущий год 2026. " + (activeSubj ? "ПРОФИЛЬ ЧАТА: " + activeSubj + ". Отвечай строго как эксперт и репетитор по предмету " + activeSubj + ", приводи точные формулы, правила, даты или пошаговое решение без воды. " : "") + "ПИШИ ТОЛЬКО НА РУССКОМ КИРИЛЛИЦЕЙ (кроме английских слов при изучении английского) без звёздочек и вступлений. НИКОГДА не задавай встречных вопросов пользователю."
           }
 
           fetch({
@@ -176,7 +181,7 @@ AppSideService({
             method: "POST",
             timeout: 90000,
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ model: modelId, messages: Array.of(sysMsg).concat(history), temperature: isRetry ? 0.85 : 0.1, max_tokens: maxTokens })
+            body: JSON.stringify({ model: modelId, messages: Array.of(sysMsg).concat(history), temperature: 0.3, max_tokens: maxTokens })
           })
             .then((res) => {
               let data = null
