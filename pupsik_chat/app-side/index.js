@@ -100,7 +100,7 @@ AppSideService({
       if (jsonRpc.method === "CHECK_AI") ctx.response({ data: loadJob() })
 
       if (jsonRpc.method === "ASK_AI") {
-        const cleanPrompt = decodeURIComponent(jsonRpc.params.prompt)
+        const cleanPrompt = (() => { try { return decodeURIComponent(jsonRpc.params.prompt) } catch (e) { return String(jsonRpc.params.prompt || "") } })()
         const maxTokens = Number(jsonRpc.params.max_tokens) || 500
         const modelId = jsonRpc.params.model || "qwen2.5-7b-instruct"
         const chatId = jsonRpc.params.chatId || String(Date.now())

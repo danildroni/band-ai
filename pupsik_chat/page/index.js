@@ -183,7 +183,7 @@ Page({
           })
           .catch(() => setTimeout(() => pollAnswer(attempt + 1), 1500))
       }
-      messageBuilder.request({ method: "ASK_AI", params: { prompt: encodeURIComponent(textToSend), max_tokens: TOKEN_PRESETS[this.state.tokenIdx], model: selectedModel, chatId: this.state.currentChatId, jobId: myJobId, isRetry: Boolean(isRetry), noContext: Boolean(this.state.noContextMode) } })
+      messageBuilder.request({ method: "ASK_AI", params: { prompt: textToSend, max_tokens: TOKEN_PRESETS[this.state.tokenIdx], model: selectedModel, chatId: this.state.currentChatId.slice(-6), jobId: myJobId.slice(-6), isRetry: isRetry ? 1 : 0, noContext: this.state.noContextMode ? 1 : 0 } })
         .then((data) => { if (data && data.chatId) this.state.currentChatId = data.chatId; if (data && data.answer) showScrollableAnswer(data.answer, 0xf1f5f9); else setTimeout(() => pollAnswer(1), 1500) })
         .catch((err) => showScrollableAnswer("Сбой: " + String(err), 0xf87171))
     }
