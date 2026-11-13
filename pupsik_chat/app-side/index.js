@@ -51,7 +51,7 @@ const saveChats = (chats) => {
 }
 
 const formatChatTranscript = (messages) => {
-  return messages.map((m) => (m.role === "user" ? "Вы: " : "ИИ: ") + m.content).join("\n\n")
+  return messages.map((m) => (m.role === "user" ? "▸ Вы:\n" : "✦ ИИ:\n") + m.content).join("\n\n")
 }
 
 const getLastUserPrompt = (messages) => {
