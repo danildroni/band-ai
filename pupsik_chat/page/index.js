@@ -171,8 +171,19 @@ Page({
         params: { prompt: encodeURIComponent(textToSend), model: selectedModel, chatId: this.state.currentChatId, isRetry: Boolean(isRetry), noContext: Boolean(this.state.noContextMode) }
       }).then((data) => {
         if (data && data.chatId) this.state.currentChatId = data.chatId
-        const txt = (data && data.answer) ? data.answer : JSON.stringify(data || {})
-        showScrollableAnswer(txt, 0xffffff); toggleAnswerControls(true)
+        if (data && data.answer) {
+          showScrollableAnswer(data.answer, 0xffffff); toggleAnswerControls(true)
+        } else {
+          displayBox.setProperty(hmUI.prop.TEXT, "Забираю ответ...")
+          messageBuilder.request({ method: "CHECK_AI" }).then((st) => {
+            if (st && st.answer) { showScrollableAnswer(st.answer, 0xffffff); toggleAnswerControls(true) }
+            else {
+              messageBuilder.request({ method: "OPEN_CHAT", params: { chatId: this.state.currentChatId } }).then((ch) => {
+                showScrollableAnswer((ch && ch.transcript) ? ch.transcript : "Нажмите ПОВ", 0xffffff); toggleAnswerControls(true)
+              })
+            }
+          })
+        }
       }).catch((err) => { showScrollableAnswer("Сбой: " + String(err), 0xff6666); toggleAnswerControls(true) })
     }
 
