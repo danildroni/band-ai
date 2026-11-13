@@ -3,8 +3,52 @@ import { MessageBuilder } from "../shared/message"
 const messageBuilder = new MessageBuilder()
 const BASE_URL = "http://ВАШ_IP:1235"
 
-let memoryChats = []
+let memoryChats = null
 let activeJob = { id: "", done: false, answer: "", chatId: "" }
+
+const saveJob = (job) => {
+  activeJob = job
+  try {
+    if (typeof settings !== "undefined" && settings.settingsStorage) {
+      settings.settingsStorage.setItem("pupsik_job", JSON.stringify(job))
+    }
+  } catch (e) {}
+}
+
+const loadJob = () => {
+  if (activeJob && activeJob.done && activeJob.answer) return activeJob
+  try {
+    if (typeof settings !== "undefined" && settings.settingsStorage) {
+      const raw = settings.settingsStorage.getItem("pupsik_job")
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed && parsed.done && parsed.answer) return parsed
+      }
+    }
+  } catch (e) {}
+  return activeJob
+}
+
+const loadChats = () => {
+  if (memoryChats !== null) return memoryChats
+  try {
+    if (typeof settings !== "undefined" && settings.settingsStorage) {
+      const raw = settings.settingsStorage.getItem("pupsik_chats")
+      if (raw) { memoryChats = JSON.parse(raw); return memoryChats }
+    }
+  } catch (e) {}
+  memoryChats = []
+  return memoryChats
+}
+
+const saveChats = (chats) => {
+  memoryChats = chats.slice(0, 6)
+  try {
+    if (typeof settings !== "undefined" && settings.settingsStorage) {
+      settings.settingsStorage.setItem("pupsik_chats", JSON.stringify(memoryChats))
+    }
+  } catch (e) {}
+}
 
 const formatChatTranscript = (messages) => {
   return messages.map((m) => (m.role === "user" ? "Вы: " : "ИИ: ") + m.content).join("\n\n")
@@ -53,16 +97,17 @@ AppSideService({
           .catch((err) => ctx.response({ data: { ok: false, msg: "Ошибка: " + String(err) } }))
       }
 
-      if (jsonRpc.method === "GET_CHATS") ctx.response({ data: { chats: memoryChats.map((c) => ({ id: c.id, title: c.title })) } })
+      if (jsonRpc.method === "GET_CHATS") ctx.response({ data: { chats: loadChats().map((c) => ({ id: c.id, title: c.title })) } })
       if (jsonRpc.method === "OPEN_CHAT") {
-        const found = memoryChats.find((c) => c.id === jsonRpc.params.chatId)
+        const found = loadChats().find((c) => c.id === jsonRpc.params.chatId)
         ctx.response({ data: { transcript: found ? formatChatTranscript(found.messages) : "", lastPrompt: found ? getLastUserPrompt(found.messages) : "" } })
       }
       if (jsonRpc.method === "DELETE_CHAT") {
-        memoryChats = memoryChats.filter((c) => c.id !== jsonRpc.params.chatId)
-        ctx.response({ data: { chats: memoryChats.map((c) => ({ id: c.id, title: c.title })) } })
+        const chats = loadChats().filter((c) => c.id !== jsonRpc.params.chatId)
+        saveChats(chats)
+        ctx.response({ data: { chats: chats.map((c) => ({ id: c.id, title: c.title })) } })
       }
-      if (jsonRpc.method === "CHECK_AI") ctx.response({ data: activeJob })
+      if (jsonRpc.method === "CHECK_AI") ctx.response({ data: loadJob() })
 
       if (jsonRpc.method === "ASK_AI") {
         const cleanPrompt = decodeURIComponent(jsonRpc.params.prompt).toLowerCase()
@@ -73,26 +118,37 @@ AppSideService({
         const noContext = Boolean(jsonRpc.params.noContext)
         const jobId = jsonRpc.params.jobId || String(Date.now())
 
-        activeJob = { id: jobId, done: false, answer: "", chatId: chatId }
+        saveJob({ id: jobId, done: false, answer: "", chatId: chatId })
         ctx.response({ data: { status: "STARTED", jobId: jobId } })
 
-        let chat = memoryChats.find((c) => c.id === chatId)
+        let chats = loadChats()
+        let chat = chats.find((c) => c.id === chatId)
         if (!chat) {
           chat = { id: chatId, title: (noContext ? "[Б] " : "") + cleanPrompt.slice(0, 12), noContext: noContext, messages: [] }
-          memoryChats.unshift(chat)
+          chats.unshift(chat)
         }
         if (isRetry && chat.messages.length >= 2 && chat.messages[chat.messages.length - 1].role === "assistant") {
           chat.messages.pop(); chat.messages.pop()
         }
 
         const isEnglishOnly = /[a-z]/.test(cleanPrompt) && !/[а-яё]/.test(cleanPrompt)
-        const isShortFollowUp = !chat.noContext && chat.messages.length > 0 && cleanPrompt.split(" ").length <= 3
+        const wordsCount = cleanPrompt.split(/\s+/).length
+        const isShortFollowUp = !chat.noContext && chat.messages.length > 0 && wordsCount <= 3
         const contextPromise = (isEnglishOnly || isShortFollowUp) ? Promise.resolve("") : searchWebContext(cleanPrompt)
 
         contextPromise.then((webInfo) => {
-          const userContent = isEnglishOnly
-            ? "Переведи на русский язык: " + cleanPrompt
-            : (webInfo ? "Справка:\n" + webInfo.slice(0, 700) + "\n\nЗапрос: " + cleanPrompt : cleanPrompt)
+          let expandedPrompt = cleanPrompt
+          if (isEnglishOnly) {
+            expandedPrompt = "Переведи на русский язык: " + cleanPrompt
+          } else if (isShortFollowUp) {
+            expandedPrompt = "Уточнение к предыдущему вопросу в диалоге: " + cleanPrompt + ". Раскрой предыдущую тему с учётом этого уточнения, не давая определение самого слова."
+          } else if (wordsCount <= 2 && !cleanPrompt.includes("?")) {
+            expandedPrompt = "Что такое " + cleanPrompt + "? Дай подробное, точное и понятное объяснение на русском языке."
+          }
+
+          const userContent = webInfo
+            ? "Справка:\n" + webInfo.slice(0, 700) + "\n\nВопрос: " + expandedPrompt
+            : expandedPrompt
 
           const history = chat.noContext
             ? Array.of({ role: "user", content: userContent })
@@ -100,7 +156,7 @@ AppSideService({
 
           const sysMsg = {
             role: "system",
-            content: "Ты русскоязычный справочник-ассистент на часах. Текущий год 2026. ПИШИ ТОЛЬКО НА РУССКОМ КИРИЛЛИЦЕЙ без звёздочек и вступлений. ЖЁСТКИЕ ПРАВИЛА: 1) ТЕБЕ ЗАПРЕЩЕНО ЗАДАВАТЬ ВОПРОСЫ ПОЛЬЗОВАТЕЛЮ! Никогда не спрашивай чем помочь и не ставь вопросительный знак в конце. 2) Любое сообщение пользователя (даже из 1 слова без знака вопроса) — это уже готовый вопрос (Что такое X? / Расскажи про X). Сразу давай полный чёткий ответ и заканчивай точкой. 3) УТОЧНЕНИЯ: если в чате уже есть переписка и пользователь прислал 1-3 слова (например: литература, книга, пьеса, фильм, игра, история, физика, армия, закон, подробнее, кратко, примеры, плюсы, минусы, причины, автор, год, перевод или любая другая область знаний), НЕ давай определение этого слова — восприми его как уточнение контекста и заново ответь на ПРЕДЫДУЩИЙ запрос строго в рамках указанного слова или темы."
+            content: "Ты русскоязычный справочник-ассистент на часах. Текущий год 2026. ПИШИ ТОЛЬКО НА РУССКОМ КИРИЛЛИЦЕЙ без звёздочек и вступлений. НИКОГДА не задавай встречных вопросов пользователю и не спрашивай чем помочь — сразу давай полный ответ и заканчивай точкой."
           }
 
           fetch({
@@ -120,12 +176,13 @@ AppSideService({
                 const out = cleanOutputText(content) || content
                 chat.messages.push({ role: "user", content: cleanPrompt })
                 chat.messages.push({ role: "assistant", content: out })
-                activeJob = { id: jobId, done: true, answer: formatChatTranscript(chat.messages), chatId: chat.id }
+                saveChats(chats)
+                saveJob({ id: jobId, done: true, answer: formatChatTranscript(chat.messages), chatId: chat.id })
               } else {
-                activeJob = { id: jobId, done: true, answer: "Пустой ответ от модели", chatId: chat.id }
+                saveJob({ id: jobId, done: true, answer: "Пустой ответ от модели", chatId: chat.id })
               }
             })
-            .catch((err) => { activeJob = { id: jobId, done: true, answer: "Ошибка сети ПК: " + String(err), chatId: chat.id } })
+            .catch((err) => saveJob({ id: jobId, done: true, answer: "Ошибка сети ПК: " + String(err), chatId: chat.id }))
         })
       }
     })
