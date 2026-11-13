@@ -192,16 +192,13 @@ Page({
     let lockTimer = null
     const renderTypingPrompt = () => {
       if (!this.state.prompt) {
-        displayBox.setProperty(hmUI.prop.MORE, { x: 10, y: 52, w: 180, h: promptH, text: "Введите запрос:", text_size: 16, color: 0x38bdf8 })
+        displayBox.setProperty(hmUI.prop.COLOR, 0x38bdf8)
+        displayBox.setProperty(hmUI.prop.TEXT, "Введите запрос:")
         return
       }
       const isEditing = this.state.lastKey !== -1
-      displayBox.setProperty(hmUI.prop.MORE, {
-        x: 10, y: 52, w: 180, h: promptH,
-        text: isEditing ? (this.state.prompt.slice(0, -1) + "[" + this.state.prompt.slice(-1) + "]") : this.state.prompt,
-        text_size: 16,
-        color: isEditing ? 0xfbbf24 : 0x38bdf8
-      })
+      displayBox.setProperty(hmUI.prop.COLOR, isEditing ? 0xfbbf24 : 0x38bdf8)
+      displayBox.setProperty(hmUI.prop.TEXT, isEditing ? (this.state.prompt.slice(0, -1) + "[" + this.state.prompt.slice(-1) + "]") : this.state.prompt)
     }
 
     for (let idx = 0; idx < 12; idx++) {
