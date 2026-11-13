@@ -201,10 +201,10 @@ Page({
       displayBox.setProperty(hmUI.prop.MORE, { x: 8, y: 50, w: 174, h: viewH, text: "Думаю (до 10с)...", text_size: 16, color: 0xffffff })
 
       const pollAnswer = (attempt) => {
-        if (attempt > 25) {
+        if (attempt > 150) {
           showScrollableAnswer("Ещё думает... Нажмите ПОВ", 0xffffff); toggleAnswerControls(true); return
         }
-        displayBox.setProperty(hmUI.prop.TEXT, "Жду ответ (" + attempt + ")...")
+        displayBox.setProperty(hmUI.prop.TEXT, "Думаю (" + attempt + "/150)...")
         messageBuilder.request({ method: "CHECK_AI" }).then((st) => {
           if (st && st.done && st.id === myJobId && st.answer) {
             showScrollableAnswer(st.answer, 0xffffff); toggleAnswerControls(true)
