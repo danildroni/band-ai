@@ -178,7 +178,7 @@ Page({
         messageBuilder.request({ method: "CHECK_AI" })
           .then((st) => {
             if (this.state.isReading) return
-            if (st && st.done && st.answer) showScrollableAnswer(st.answer, 0xf1f5f9)
+            if (st && st.done && st.id === myJobId && st.answer) showScrollableAnswer(st.answer, 0xf1f5f9)
             else setTimeout(() => pollAnswer(attempt + 1), 1500)
           })
           .catch(() => setTimeout(() => pollAnswer(attempt + 1), 1500))
