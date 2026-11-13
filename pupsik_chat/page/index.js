@@ -216,7 +216,7 @@ Page({
             if (data && data.answer) { this.state.lastAnswerText = data.answer; showScrollableAnswer(data.answer, 0xf1f5f9) }
             else setTimeout(() => pollAnswer(1), 1500)
           })
-          .catch((err) => showScrollableAnswer("Сбой: " + String(err), 0xf87171))
+          .catch(() => pollAnswer(7))
       }
 
       const sendNextChunk = (idx) => {
