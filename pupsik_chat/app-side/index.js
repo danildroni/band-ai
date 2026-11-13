@@ -65,19 +65,6 @@ const cleanOutputText = (rawText) => {
   return String(rawText || "").replace(/[\u4e00-\u9fff]/g, "").replace(/[*#_`~]/g, "").replace(/\n{3,}/g, "\n\n").trim()
 }
 
-const searchWebContext = (query) => {
-  let cleanQ = query.replace(/[?!.,;:()"]/g, " ")
-  const isLit = /(автор|написал|сюжет|герои|пьес|роман|стих|поэм|книг)/.test(cleanQ)
-  cleanQ = cleanQ.replace(/\b(кто|такой|такая|автор|написал|написала|про|что|такое|сюжет)\b/g, " ")
-  const kw = (cleanQ.split(/\s+/).filter((w) => w.length > 1).join(" ") + (isLit ? " произведение" : "")).trim() || query
-  return fetch({ url: "https://wikipedia.org" + encodeURIComponent(kw) + "&utf8=&format=json&srlimit=2", method: "GET", timeout: 2500 })
-    .then((res) => {
-      const data = typeof res.body === "string" ? JSON.parse(res.body) : res.body
-      const items = data && data.query && Array.isArray(data.query.search) ? data.query.search : []
-      return items.map((item) => item.title + ": " + item.snippet.replace(/<[^>]+>/g, "")).join("\n")
-    }).catch(() => "")
-}
-
 AppSideService({
   onInit() {
     messageBuilder.listen(() => {})
@@ -113,7 +100,7 @@ AppSideService({
       if (jsonRpc.method === "CHECK_AI") ctx.response({ data: loadJob() })
 
       if (jsonRpc.method === "ASK_AI") {
-        const cleanPrompt = decodeURIComponent(jsonRpc.params.prompt).toLowerCase()
+        const cleanPrompt = decodeURIComponent(jsonRpc.params.prompt)
         const maxTokens = Number(jsonRpc.params.max_tokens) || 500
         const modelId = jsonRpc.params.model || "qwen2.5-7b-instruct"
         const chatId = jsonRpc.params.chatId || String(Date.now())
@@ -136,71 +123,39 @@ AppSideService({
           chat.messages.pop(); chat.messages.pop()
         }
 
-        const isEnglishOnly = /[a-z]/.test(cleanPrompt) && !/[а-яё]/.test(cleanPrompt)
-        const wordsCount = cleanPrompt.split(/\s+/).length
-        const isShortFollowUp = !chat.noContext && chat.messages.length > 0 && wordsCount <= 3
-        const prevUserQ = isShortFollowUp ? getLastUserPrompt(chat.messages) : ""
-        const baseQ = isShortFollowUp ? (prevUserQ + " " + cleanPrompt).trim() : cleanPrompt
-        const isLit = activeSubj === "Литература"
-        const searchQuery = (activeSubj && !isEnglishOnly) ? (isLit ? ("произведение " + baseQ + " пьеса роман автор") : (baseQ + " " + activeSubj)).trim() : baseQ
-        const contextPromise = (isEnglishOnly || isLit) ? Promise.resolve("") : searchWebContext(searchQuery)
+        const history = chat.noContext
+          ? Array.of({ role: "user", content: cleanPrompt })
+          : chat.messages.slice(-8).concat(Array.of({ role: "user", content: cleanPrompt }))
 
-        contextPromise.then((webInfo) => {
-          let expandedPrompt = cleanPrompt
-          if (isEnglishOnly) {
-            expandedPrompt = "Переведи на русский язык: " + cleanPrompt
-          } else if (isShortFollowUp) {
-            expandedPrompt = "Уточнение к предыдущему вопросу в диалоге: " + cleanPrompt + ". Раскрой предыдущую тему" + (activeSubj ? " в рамках предмета «" + activeSubj + "»" : "") + " с учётом этого уточнения."
-          } else if (wordsCount <= 2 && !cleanPrompt.includes("?")) {
-            if (isLit) {
-              expandedPrompt = "Литературное произведение «" + cleanPrompt + "»: назови автора, жанр, год написания, главных героев и главную идею произведения. Не пиши про природные или погодные явления."
-            } else if (activeSubj) {
-              expandedPrompt = "Школьный предмет: " + activeSubj + ". Объясни термин, закон или понятие «" + cleanPrompt + "» строго в рамках науки «" + activeSubj + "»."
-            } else {
-              expandedPrompt = "Что такое " + cleanPrompt + "? Дай подробное, точное и понятное объяснение на русском языке."
-            }
-          } else if (activeSubj && !isEnglishOnly) {
-            expandedPrompt = "Школьный предмет: " + activeSubj + ". Вопрос: " + cleanPrompt
-          }
+        const sysMsg = {
+          role: "system",
+          content: "Ты русскоязычный справочник-ассистент на часах. Текущий год 2026. " + (activeSubj ? "ПРОФИЛЬ: " + activeSubj + ". Отвечай строго в рамках предмета " + activeSubj + ". " : "") + "ПИШИ ТОЛЬКО НА РУССКОМ КИРИЛЛИЦЕЙ без звёздочек, иероглифов и встречных вопросов."
+        }
 
-          const userContent = webInfo
-            ? "Справка:\n" + webInfo.slice(0, 700) + "\n\nВопрос: " + expandedPrompt
-            : expandedPrompt
-
-          const history = chat.noContext
-            ? Array.of({ role: "user", content: userContent })
-            : chat.messages.slice(-8).concat(Array.of({ role: "user", content: userContent }))
-
-          const sysMsg = {
-            role: "system",
-            content: "Ты русскоязычный справочник-ассистент на часах. Текущий год 2026. " + (activeSubj ? "ПРОФИЛЬ ЧАТА: " + activeSubj + ". Отвечай строго как эксперт и репетитор по предмету " + activeSubj + ", приводи точные формулы, правила, даты или пошаговое решение без воды. " : "") + "ПИШИ ТОЛЬКО НА РУССКОМ КИРИЛЛИЦЕЙ (кроме английских слов при изучении английского) без звёздочек и вступлений. НИКОГДА не задавай встречных вопросов пользователю."
-          }
-
-          fetch({
-            url: BASE_URL + "/v1/chat/completions",
-            method: "POST",
-            timeout: 90000,
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ model: modelId, messages: Array.of(sysMsg).concat(history), temperature: 0.3, max_tokens: maxTokens })
-          })
-            .then((res) => {
-              let data = null
-              try { data = typeof res.body === "string" ? JSON.parse(res.body) : res.body } catch (e) {}
-              const choice = (data && Array.isArray(data.choices) && data.choices.length > 0) ? data.choices.slice(0, 1).pop() : null
-              const content = (choice && choice.message && choice.message.content) ? choice.message.content : ""
-
-              if (content) {
-                const out = cleanOutputText(content) || content
-                chat.messages.push({ role: "user", content: cleanPrompt })
-                chat.messages.push({ role: "assistant", content: out })
-                saveChats(chats)
-                saveJob({ id: jobId, done: true, answer: formatChatTranscript(chat.messages), chatId: chat.id })
-              } else {
-                saveJob({ id: jobId, done: true, answer: "Пустой ответ от модели", chatId: chat.id })
-              }
-            })
-            .catch((err) => saveJob({ id: jobId, done: true, answer: "Ошибка сети ПК: " + String(err), chatId: chat.id }))
+        fetch({
+          url: BASE_URL + "/v1/chat/completions",
+          method: "POST",
+          timeout: 90000,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model: modelId, messages: Array.of(sysMsg).concat(history), temperature: 0.3, max_tokens: maxTokens })
         })
+          .then((res) => {
+            let data = null
+            try { data = typeof res.body === "string" ? JSON.parse(res.body) : res.body } catch (e) {}
+            const choice = (data && Array.isArray(data.choices) && data.choices.length > 0) ? data.choices.slice(0, 1).pop() : null
+            const content = (choice && choice.message && choice.message.content) ? choice.message.content : ""
+
+            if (content) {
+              const out = cleanOutputText(content) || content
+              chat.messages.push({ role: "user", content: cleanPrompt })
+              chat.messages.push({ role: "assistant", content: out })
+              saveChats(chats)
+              saveJob({ id: jobId, done: true, answer: formatChatTranscript(chat.messages), chatId: chat.id })
+            } else {
+              saveJob({ id: jobId, done: true, answer: "Пустой ответ от модели", chatId: chat.id })
+            }
+          })
+          .catch((err) => saveJob({ id: jobId, done: true, answer: "Ошибка сети ПК: " + String(err), chatId: chat.id }))
       }
     })
   },
