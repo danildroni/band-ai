@@ -174,10 +174,13 @@ Page({
     const resetToInput = (placeholder) => { this.state.isReading = false; this.state.lastKey = -1; setPageScroll(false); positionAnswerBar(bottomY, false); displayBox.setProperty(hmUI.prop.VISIBLE, true); displayBox.setProperty(hmUI.prop.MORE, { x: 10, y: 52, w: 180, h: promptH, text: this.state.prompt || placeholder, text_size: 16, color: 0x38bdf8 }); toggleKeyboard(true) }
 
     const sendPromptToAI = (textToSend, isRetry) => {
-      this.state.lastPrompt = textToSend; this.state.isReading = false; setPageScroll(false)
+      if (lockTimer) { clearTimeout(lockTimer); lockTimer = null }
+      this.state.lastKey = -1; this.state.lastPrompt = textToSend; this.state.isReading = false; setPageScroll(false)
       const selectedModel = this.state.models[this.state.modelIdx]; const myJobId = String(Date.now()).slice(-6)
       toggleKeyboard(false); positionAnswerBar(bottomY, false)
-      displayBox.setProperty(hmUI.prop.MORE, { x: 10, y: 52, w: 180, h: promptH, text: "Передаю...", text_size: 16, color: 0xffffff })
+      displayBox.setProperty(hmUI.prop.VISIBLE, true)
+      displayBox.setProperty(hmUI.prop.COLOR, 0xffffff)
+      displayBox.setProperty(hmUI.prop.TEXT, "Передаю...")
 
       const pollAnswer = (attempt) => {
         if (this.state.isReading || this.state.isMenuOpen) return
