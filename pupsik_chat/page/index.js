@@ -210,13 +210,31 @@ Page({
     toggleAnswerControls(false)
 
     const sendPromptToAI = (textToSend, isRetry) => {
-      this.state.lastPrompt = textToSend; this.state.isReading = false; touchPad.setProperty(hmUI.prop.VISIBLE, false)
-      const maxTokens = TOKEN_PRESETS[this.state.tokenIdx]; const selectedModel = this.state.models[this.state.modelIdx]
-      toggleKeyboard(false); toggleAnswerControls(false)
-      displayBox.setProperty(hmUI.prop.MORE, { x: 10, y: 50, w: 174, h: bottomY - 58, text: "Ищу и думаю (" + maxTokens + "Т)...", text_size: 16, color: 0xffffff })
-      messageBuilder.request({ method: "ASK_AI", params: { prompt: encodeURIComponent(textToSend), max_tokens: maxTokens, model: selectedModel, chatId: this.state.currentChatId, isRetry: Boolean(isRetry), noContext: Boolean(this.state.noContextMode) } })
-        .then((data) => { if (data && data.chatId) this.state.currentChatId = data.chatId; showScrollableAnswer((data && data.answer) ? data.answer : "Пустой ответ", 0xffffff); toggleAnswerControls(true) })
-        .catch((err) => { showScrollableAnswer("Ошибка: " + String(err), 0xff6666); toggleAnswerControls(true) })
+      this.state.lastPrompt = textToSend
+      this.state.isReading = false
+      toggleScrollButtons(false)
+      const selectedModel = this.state.models[this.state.modelIdx]
+      toggleKeyboard(false)
+      toggleAnswerControls(false)
+      displayBox.setProperty(hmUI.prop.MORE, { x: 8, y: 50, w: 174, h: viewH, text: "Думаю (до 10с)...", text_size: 16, color: 0xffffff })
+      messageBuilder.request({
+        method: "ASK_AI",
+        params: {
+          prompt: encodeURIComponent(textToSend),
+          model: selectedModel,
+          chatId: this.state.currentChatId,
+          isRetry: Boolean(isRetry),
+          noContext: Boolean(this.state.noContextMode)
+        }
+      }).then((data) => {
+        if (data && data.chatId) this.state.currentChatId = data.chatId
+        const txt = (data && data.answer) ? data.answer : JSON.stringify(data || {})
+        showScrollableAnswer(txt, 0xffffff)
+        toggleAnswerControls(true)
+      }).catch((err) => {
+        showScrollableAnswer("Сбой: " + String(err), 0xff6666)
+        toggleAnswerControls(true)
+      })
     }
 
     for (let idx = 0; idx < 12; idx++) {
