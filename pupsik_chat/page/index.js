@@ -202,6 +202,7 @@ Page({
     prBackBtn.setProperty(hmUI.prop.VISIBLE, false)
 
     const togglePresetsDialog = (show) => {
+      if (show) toggleKeyboard(false)
       setPageScroll(show)
       prTitle.setProperty(hmUI.prop.VISIBLE, show)
       prBackBtn.setProperty(hmUI.prop.VISIBLE, show)
@@ -211,6 +212,7 @@ Page({
     }
 
     const toggleNewChatDialog = (show) => {
+      if (show) toggleKeyboard(false)
       setPageScroll(false)
       dlgBg.setProperty(hmUI.prop.VISIBLE, show); dlgTitle.setProperty(hmUI.prop.VISIBLE, show)
       dlgCtxBtn.setProperty(hmUI.prop.VISIBLE, show); dlgNoCtxBtn.setProperty(hmUI.prop.VISIBLE, show)
