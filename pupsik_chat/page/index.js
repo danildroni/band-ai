@@ -197,7 +197,21 @@ Page({
               setTimeout(() => pollAnswer(attempt + 1), 1500)
             }
           })
-          .catch(() => setTimeout(() => pollAnswer(attempt + 1), 1500))
+          .catch(() => {
+            messageBuilder.request({ method: "GET_CHATS" }).then((gRes) => {
+              const list = (gRes && Array.isArray(gRes.chats)) ? gRes.chats : []
+              const targetId = list.length > 0 ? list[0].id : this.state.currentChatId
+              return messageBuilder.request({ method: "OPEN_CHAT", params: { chatId: targetId } })
+            }).then((oRes) => {
+              if (this.state.isReading) return
+              if (oRes && oRes.transcript && oRes.transcript !== this.state.lastAnswerText && oRes.transcript.includes("ИИ:")) {
+                this.state.lastAnswerText = oRes.transcript
+                showScrollableAnswer(oRes.transcript, 0xf1f5f9)
+              } else {
+                setTimeout(() => pollAnswer(attempt + 1), 1500)
+              }
+            }).catch(() => setTimeout(() => pollAnswer(attempt + 1), 1500))
+          })
       }
 
       const chunks = []

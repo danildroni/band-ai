@@ -45,7 +45,7 @@ export const MessagePayloadOpCode = {
   Finished: 0x1,
 }
 
-let traceId = 10000
+let traceId = 90000
 export function genTraceId() {
   return traceId++
 }
@@ -56,7 +56,7 @@ export function genSpanId() {
 }
 
 export function getTimestamp(t = Date.now()) {
-  return t % 10000000
+  return t % 90000000
 }
 
 class Session extends EventBus {
