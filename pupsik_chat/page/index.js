@@ -166,6 +166,21 @@ Page({
       const selectedModel = this.state.models[this.state.modelIdx]
       toggleKeyboard(false); toggleAnswerControls(false)
       displayBox.setProperty(hmUI.prop.MORE, { x: 8, y: 50, w: 174, h: viewH, text: "Думаю (до 10с)...", text_size: 16, color: 0xffffff })
+
+      const pollAnswer = (attempt) => {
+        if (attempt > 8) {
+          showScrollableAnswer("Нажмите ПОВ", 0xffffff); toggleAnswerControls(true); return
+        }
+        displayBox.setProperty(hmUI.prop.TEXT, "Жду ответ (" + attempt + ")...")
+        messageBuilder.request({ method: "CHECK_AI" }).then((st) => {
+          if (st && st.done && st.answer) {
+            showScrollableAnswer(st.answer, 0xffffff); toggleAnswerControls(true)
+          } else {
+            pollAnswer(attempt + 1)
+          }
+        }).catch(() => pollAnswer(attempt + 1))
+      }
+
       messageBuilder.request({
         method: "ASK_AI",
         params: { prompt: encodeURIComponent(textToSend), model: selectedModel, chatId: this.state.currentChatId, isRetry: Boolean(isRetry), noContext: Boolean(this.state.noContextMode) }
@@ -174,15 +189,7 @@ Page({
         if (data && data.answer) {
           showScrollableAnswer(data.answer, 0xffffff); toggleAnswerControls(true)
         } else {
-          displayBox.setProperty(hmUI.prop.TEXT, "Забираю ответ...")
-          messageBuilder.request({ method: "CHECK_AI" }).then((st) => {
-            if (st && st.answer) { showScrollableAnswer(st.answer, 0xffffff); toggleAnswerControls(true) }
-            else {
-              messageBuilder.request({ method: "OPEN_CHAT", params: { chatId: this.state.currentChatId } }).then((ch) => {
-                showScrollableAnswer((ch && ch.transcript) ? ch.transcript : "Нажмите ПОВ", 0xffffff); toggleAnswerControls(true)
-              })
-            }
-          })
+          pollAnswer(1)
         }
       }).catch((err) => { showScrollableAnswer("Сбой: " + String(err), 0xff6666); toggleAnswerControls(true) })
     }
