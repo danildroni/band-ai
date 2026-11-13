@@ -137,7 +137,9 @@ AppSideService({
         const isEnglishOnly = /[a-z]/.test(cleanPrompt) && !/[а-яё]/.test(cleanPrompt)
         const wordsCount = cleanPrompt.split(/\s+/).length
         const isShortFollowUp = !chat.noContext && chat.messages.length > 0 && wordsCount <= 3
-        const contextPromise = (isEnglishOnly || isShortFollowUp) ? Promise.resolve("") : searchWebContext(cleanPrompt)
+        const prevUserQ = isShortFollowUp ? getLastUserPrompt(chat.messages) : ""
+        const searchQuery = isShortFollowUp ? (prevUserQ + " " + cleanPrompt).trim() : cleanPrompt
+        const contextPromise = isEnglishOnly ? Promise.resolve("") : searchWebContext(searchQuery)
 
         contextPromise.then((webInfo) => {
           let expandedPrompt = cleanPrompt

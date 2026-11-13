@@ -87,37 +87,53 @@ Page({
       tokenBg.setProperty(hmUI.prop.COLOR, TOKEN_COLORS[i])
       tokenBtn.setProperty(hmUI.prop.TEXT, String(TOKEN_PRESETS[i]) + "Т")
     })
-    const retryBtn = hmUI.createWidget(hmUI.widget.BUTTON, {
-      x: 65, y: bottomY, w: 42, h: bottomBtnH, text: "ПОВ", text_size: 13, radius: 10,
-      normal_color: 0x226633, press_color: 0x339944,
-      click_func: () => {
-        messageBuilder.request({ method: "CHECK_AI" }).then((st) => {
-          if (st && st.done && st.answer) showScrollableAnswer(st.answer, 0xffffff)
-          else if (this.state.lastPrompt) sendPromptToAI(this.state.lastPrompt, true)
-        }).catch(() => { if (this.state.lastPrompt) sendPromptToAI(this.state.lastPrompt, true) })
+    const retryBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 65, y: bottomY, w: 42, h: bottomBtnH, radius: 10, color: 0x226633 })
+    const retryBtn = hmUI.createWidget(hmUI.widget.TEXT, { x: 65, y: bottomY, w: 42, h: bottomBtnH, text: "ПОВ", text_size: 13, color: 0xffffff, align_h: hmUI.align.CENTER_H, align_v: hmUI.align.CENTER_V })
+    retryBtn.addEventListener(hmUI.event.CLICK_UP, () => {
+      if (this.state.lastPrompt) {
+        sendPromptToAI(this.state.lastPrompt, true)
+      } else {
+        messageBuilder.request({ method: "OPEN_CHAT", params: { chatId: this.state.currentChatId } })
+          .then((res) => {
+            if (res && res.lastPrompt) {
+              this.state.lastPrompt = res.lastPrompt
+              sendPromptToAI(res.lastPrompt, true)
+            }
+          })
       }
     })
-    const delChatBtn = hmUI.createWidget(hmUI.widget.BUTTON, {
-      x: 110, y: bottomY, w: 38, h: bottomBtnH, text: "X", text_size: 18, radius: 10,
-      normal_color: 0x771111, press_color: 0xaa2222,
-      click_func: () => {
-        if (!this.state.confirmDel) { this.state.confirmDel = true; delChatBtn.setProperty(hmUI.prop.TEXT, "X?"); return }
-        this.state.confirmDel = false; delChatBtn.setProperty(hmUI.prop.TEXT, "X")
-        messageBuilder.request({ method: "DELETE_CHAT", params: { chatId: this.state.currentChatId } }).catch(() => {})
-        this.state.currentChatId = String(Date.now()); this.state.prompt = ""; resetToInput("Чат удалён:")
+
+    const delChatBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 110, y: bottomY, w: 38, h: bottomBtnH, radius: 10, color: 0x771111 })
+    const delChatBtn = hmUI.createWidget(hmUI.widget.TEXT, { x: 110, y: bottomY, w: 38, h: bottomBtnH, text: "X", text_size: 18, color: 0xffffff, align_h: hmUI.align.CENTER_H, align_v: hmUI.align.CENTER_V })
+    delChatBtn.addEventListener(hmUI.event.CLICK_UP, () => {
+      if (!this.state.confirmDel) {
+        this.state.confirmDel = true
+        delChatBtn.setProperty(hmUI.prop.TEXT, "X?")
+        delChatBg.setProperty(hmUI.prop.COLOR, 0xcc0000)
+        return
       }
+      this.state.confirmDel = false
+      delChatBtn.setProperty(hmUI.prop.TEXT, "X")
+      delChatBg.setProperty(hmUI.prop.COLOR, 0x771111)
+      messageBuilder.request({ method: "DELETE_CHAT", params: { chatId: this.state.currentChatId } }).catch(() => {})
+      this.state.currentChatId = String(Date.now())
+      this.state.prompt = ""
+      resetToInput("Чат удалён:")
     })
-    const backBtn = hmUI.createWidget(hmUI.widget.BUTTON, {
-      x: 151, y: bottomY, w: 39, h: bottomBtnH, text: "<-", text_size: 18, radius: 10,
-      normal_color: 0x1155cc, press_color: 0x2277ff,
-      click_func: () => { this.state.prompt = ""; resetToInput("Продолжите чат:") }
+
+    const backBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 151, y: bottomY, w: 39, h: bottomBtnH, radius: 10, color: 0x1155cc })
+    const backBtn = hmUI.createWidget(hmUI.widget.TEXT, { x: 151, y: bottomY, w: 39, h: bottomBtnH, text: "<-", text_size: 18, color: 0xffffff, align_h: hmUI.align.CENTER_H, align_v: hmUI.align.CENTER_V })
+    backBtn.addEventListener(hmUI.event.CLICK_UP, () => {
+      this.state.prompt = ""
+      resetToInput("Продолжите чат:")
     })
 
     const positionAnswerBar = (barY, show) => {
-      tokenBg.setProperty(hmUI.prop.Y, barY); tokenBtn.setProperty(hmUI.prop.Y, barY)
-      retryBtn.setProperty(hmUI.prop.Y, barY); delChatBtn.setProperty(hmUI.prop.Y, barY); backBtn.setProperty(hmUI.prop.Y, barY)
-      tokenBg.setProperty(hmUI.prop.VISIBLE, show); tokenBtn.setProperty(hmUI.prop.VISIBLE, show)
-      retryBtn.setProperty(hmUI.prop.VISIBLE, show); delChatBtn.setProperty(hmUI.prop.VISIBLE, show); backBtn.setProperty(hmUI.prop.VISIBLE, show)
+      const widgets = Array.of(tokenBg, tokenBtn, retryBg, retryBtn, delChatBg, delChatBtn, backBg, backBtn)
+      for (let i = 0; i < widgets.length; i++) {
+        widgets[i].setProperty(hmUI.prop.Y, barY)
+        widgets[i].setProperty(hmUI.prop.VISIBLE, show)
+      }
     }
     positionAnswerBar(bottomY, false)
 
