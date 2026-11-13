@@ -134,9 +134,29 @@ AppSideService({
             fullPrompt = "Что такое " + cleanPrompt + "? Дай краткое и точное объяснение."
           }
         }
-        const history = chat.noContext
-          ? Array.of({ role: "user", content: fullPrompt })
-          : chat.messages.slice(-8).concat(Array.of({ role: "user", content: fullPrompt }))
+        const rawClean = cleanPrompt.replace(/^\[[^\]]+\]\s*/, "").trim()
+        const wikiQ = activeSubj === "Литература"
+          ? (rawClean + " пьеса роман поэма автор")
+          : (activeSubj ? (rawClean + " " + activeSubj) : rawClean)
+
+        fetch({
+          url: "https://wikipedia.org" + encodeURIComponent(wikiQ) + "&utf8=&format=json&srlimit=2",
+          method: "GET",
+          timeout: 3000
+        })
+          .then((wRes) => {
+            const wData = typeof wRes.body === "string" ? JSON.parse(wRes.body) : wRes.body
+            const items = (wData && wData.query && Array.isArray(wData.query.search)) ? wData.query.search : []
+            return items.map((it) => it.title + ": " + it.snippet.replace(/<[^>]+>/g, "")).join("\n")
+          })
+          .catch(() => "")
+          .then((wikiText) => {
+            const finalPrompt = wikiText
+              ? ("Факты из энциклопедии:\n" + wikiText.slice(0, 750) + "\n\nОпираясь строго на эти факты, ответь на запрос: " + fullPrompt)
+              : fullPrompt
+            const history = chat.noContext
+              ? Array.of({ role: "user", content: finalPrompt })
+              : chat.messages.slice(-8).concat(Array.of({ role: "user", content: finalPrompt }))
 
         const sysMsg = {
           role: "system",
@@ -167,6 +187,7 @@ AppSideService({
             }
           })
           .catch((err) => saveJob({ id: jobId, done: true, answer: "Ошибка сети ПК: " + String(err), chatId: chat.id }))
+          })
       }
     })
   },
