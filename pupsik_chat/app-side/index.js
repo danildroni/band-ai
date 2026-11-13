@@ -127,7 +127,7 @@ AppSideService({
         let fullPrompt = cleanPrompt
         if (wordsCnt <= 2 && !cleanPrompt.includes("?")) {
           if (activeSubj === "Литература") {
-            fullPrompt = "Литературное произведение «" + cleanPrompt + "»: автор, жанр, главные герои и смысл. Не пиши про погоду."
+            fullPrompt = "Это урок литературы. Назови автора, жанр, героев и сюжет известного литературного произведения под названием «" + cleanPrompt + "» из школьной программы. Упоминать погоду и природу строго запрещено."
           } else if (activeSubj) {
             fullPrompt = "Предмет " + activeSubj + ": объясни понятие «" + cleanPrompt + "» строго в рамках этой науки."
           } else {
