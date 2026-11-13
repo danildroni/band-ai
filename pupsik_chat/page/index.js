@@ -171,7 +171,15 @@ Page({
       this.state.tokenIdx = (this.state.tokenIdx + 1) % TOKEN_PRESETS.length
       const i = this.state.tokenIdx; tokenBg.setProperty(hmUI.prop.COLOR, TOKEN_COLORS[i]); tokenBtn.setProperty(hmUI.prop.TEXT, String(TOKEN_PRESETS[i]) + "Т")
     })
-    const retryBtn = hmUI.createWidget(hmUI.widget.BUTTON, { x: 66, y: bottomY, w: 42, h: bottomBtnH, text: "ПОВ", text_size: 13, radius: 10, normal_color: 0x226633, press_color: 0x339944, click_func: () => { if (this.state.lastPrompt) sendPromptToAI(this.state.lastPrompt, true) } })
+    const retryBtn = hmUI.createWidget(hmUI.widget.BUTTON, { x: 66, y: bottomY, w: 42, h: bottomBtnH, text: "ПОВ", text_size: 13, radius: 10, normal_color: 0x226633, press_color: 0x339944, click_func: () => {
+        messageBuilder.request({ method: "CHECK_AI" }).then((st) => {
+          if (st && st.done && st.answer) {
+            showScrollableAnswer(st.answer, 0xffffff); toggleAnswerControls(true)
+          } else if (this.state.lastPrompt) {
+            sendPromptToAI(this.state.lastPrompt, true)
+          }
+        }).catch(() => { if (this.state.lastPrompt) sendPromptToAI(this.state.lastPrompt, true) })
+      } })
     const delChatBtn = hmUI.createWidget(hmUI.widget.BUTTON, {
       x: 111, y: bottomY, w: 38, h: bottomBtnH, text: "X", text_size: 18, radius: 10, normal_color: 0x771111, press_color: 0xaa2222,
       click_func: () => {
@@ -193,8 +201,8 @@ Page({
       displayBox.setProperty(hmUI.prop.MORE, { x: 8, y: 50, w: 174, h: viewH, text: "Думаю (до 10с)...", text_size: 16, color: 0xffffff })
 
       const pollAnswer = (attempt) => {
-        if (attempt > 10) {
-          showScrollableAnswer("Нажмите ПОВ", 0xffffff); toggleAnswerControls(true); return
+        if (attempt > 25) {
+          showScrollableAnswer("Ещё думает... Нажмите ПОВ", 0xffffff); toggleAnswerControls(true); return
         }
         displayBox.setProperty(hmUI.prop.TEXT, "Жду ответ (" + attempt + ")...")
         messageBuilder.request({ method: "CHECK_AI" }).then((st) => {
