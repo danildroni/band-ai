@@ -46,14 +46,20 @@ const loadJob = () => {
   try {
     if (typeof settings !== "undefined" && settings.settingsStorage) {
       const raw = settings.settingsStorage.getItem("pupsik_job")
-      if (raw) return JSON.parse(raw)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed && parsed.done && parsed.answer) return parsed
+      }
     }
   } catch (e) {}
   const chats = loadChats()
-  if (chats && chats.length > 0 && chats.messages && chats.messages.length > 0) {
-    return { id: "", done: true, answer: formatChatTranscript(chats.messages), chatId: chats.id }
+  if (Array.isArray(chats) && chats.length > 0) {
+    const latest = chats.slice(0, 1).pop()
+    if (latest && Array.isArray(latest.messages) && latest.messages.length > 0) {
+      return { id: "", done: true, answer: formatChatTranscript(latest.messages), chatId: latest.id }
+    }
   }
-  return activeJob
+  return { id: "", done: false, answer: "", chatId: "" }
 }
 
 const getLastUserPrompt = (messages) => {
