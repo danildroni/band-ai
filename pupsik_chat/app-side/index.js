@@ -119,6 +119,7 @@ AppSideService({
         const chatId = jsonRpc.params.chatId || String(Date.now())
         const isRetry = Boolean(jsonRpc.params.isRetry)
         const noContext = Boolean(jsonRpc.params.noContext)
+        const subject = jsonRpc.params.subject || ""
         const jobId = jsonRpc.params.jobId || String(Date.now())
 
         saveJob({ id: jobId, done: false, answer: "", chatId: chatId })
@@ -127,7 +128,7 @@ AppSideService({
         let chats = loadChats()
         let chat = chats.find((c) => c.id === chatId)
         if (!chat) {
-          chat = { id: chatId, title: (noContext ? "[Б] " : "") + cleanPrompt.slice(0, 12), noContext: noContext, messages: [] }
+          chat = { id: chatId, title: (subject ? "[" + subject.slice(0, 3) + "] " : (noContext ? "[Б] " : "")) + cleanPrompt.slice(0, 10), noContext: noContext, messages: [] }
           chats.unshift(chat)
         }
         if (isRetry && chat.messages.length >= 2 && chat.messages[chat.messages.length - 1].role === "assistant") {
@@ -162,7 +163,7 @@ AppSideService({
 
           const sysMsg = {
             role: "system",
-            content: "Ты русскоязычный справочник-ассистент на часах. Текущий год 2026. ПИШИ ТОЛЬКО НА РУССКОМ КИРИЛЛИЦЕЙ без звёздочек и вступлений. Если Справка не подходит по смыслу к вопросу — игнорируй её. НИКОГДА не задавай встречных вопросов пользователю и не спрашивай чем помочь — сразу давай полный ответ и заканчивай точкой."
+            content: "Ты русскоязычный справочник-ассистент на часах. Текущий год 2026. " + (subject ? "ПРОФИЛЬ ЧАТА: " + subject + ". Отвечай строго как эксперт и репетитор по предмету " + subject + ", приводи точные формулы, правила, даты или пошаговое решение без воды. " : "") + "ПИШИ ТОЛЬКО НА РУССКОМ КИРИЛЛИЦЕЙ (кроме английских слов при изучении английского) без звёздочек и вступлений. НИКОГДА не задавай встречных вопросов пользователю."
           }
 
           fetch({

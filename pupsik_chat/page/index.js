@@ -21,7 +21,7 @@ Page({
   state: {
     prompt: "", lastPrompt: "", lastKey: -1, charIndex: 0, lastTapTime: 0,
     modeIdx: 0, tokenIdx: 1, modelIdx: 0, models: Array.of("qwen2.5-7b-instruct"),
-    currentChatId: String(Date.now()), noContextMode: false, chatList: [],
+    currentChatId: String(Date.now()), noContextMode: false, subjectMode: "", chatList: [],
     isReading: false, isMenuOpen: false, confirmDel: false, lastTextH: 200
   },
   onInit() { if (typeof hmSetting !== "undefined" && hmSetting.setBrightScreen) hmSetting.setBrightScreen(300) },
@@ -148,19 +148,78 @@ Page({
     }
     const newChatMenuBtn = hmUI.createWidget(hmUI.widget.BUTTON, { x: 6, y: 52, w: 182, h: 42, text: "+ НОВЫЙ ЧАТ", text_size: 15, radius: 10, normal_color: 0x1155cc, press_color: 0x2277ff, click_func: () => toggleNewChatDialog(true) })
     newChatMenuBtn.setProperty(hmUI.prop.VISIBLE, false)
-    const dlgBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 8, y: 65, w: 178, h: 215, radius: 14, color: 0x181c24 })
-    const dlgTitle = hmUI.createWidget(hmUI.widget.TEXT, { x: 14, y: 74, w: 166, h: 28, text: "Выберите тип чата:", text_size: 15, color: 0xffffff, align_h: hmUI.align.CENTER_H })
-    const dlgCtxBtn = hmUI.createWidget(hmUI.widget.BUTTON, { x: 16, y: 108, w: 162, h: 48, text: "С КОНТЕКСТОМ", text_size: 15, radius: 10, normal_color: 0x1155cc, press_color: 0x2277ff, click_func: () => { toggleNewChatDialog(false); this.state.currentChatId = String(Date.now()); this.state.noContextMode = false; this.state.prompt = ""; this.state.lastPrompt = ""; closeChatMenu(); resetToInput("Чат с памятью:") } })
-    const dlgNoCtxBtn = hmUI.createWidget(hmUI.widget.BUTTON, { x: 16, y: 164, w: 162, h: 48, text: "БЕЗ КОНТЕКСТА", text_size: 15, radius: 10, normal_color: 0x662299, press_color: 0x8833cc, click_func: () => { toggleNewChatDialog(false); this.state.currentChatId = String(Date.now()); this.state.noContextMode = true; this.state.prompt = ""; this.state.lastPrompt = ""; closeChatMenu(); resetToInput("Чат без памяти:") } })
-    const dlgCancelBtn = hmUI.createWidget(hmUI.widget.BUTTON, { x: 16, y: 222, w: 162, h: 44, text: "ОТМЕНА", text_size: 14, radius: 10, normal_color: 0x333333, press_color: 0x555555, click_func: () => toggleNewChatDialog(false) })
+    const SUBJECTS = Array.of(
+      "История", "Литература", "Обществознание", "География", "Биология",
+      "Астрономия", "Английский язык", "Вероятность и статистика", "Геометрия",
+      "Алгебра пр", "Информатика", "Русский язык", "Физика", "Химия"
+    )
+    const presetBtns = []
+
+    const dlgBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 6, y: 54, w: 182, h: 268, radius: 14, color: 0x181c24 })
+    const dlgTitle = hmUI.createWidget(hmUI.widget.TEXT, { x: 12, y: 60, w: 170, h: 26, text: "Новый чат:", text_size: 15, color: 0xffffff, align_h: hmUI.align.CENTER_H })
+    const dlgCtxBtn = hmUI.createWidget(hmUI.widget.BUTTON, {
+      x: 14, y: 92, w: 166, h: 46, text: "С КОНТЕКСТОМ", text_size: 14, radius: 10, normal_color: 0x1155cc, press_color: 0x2277ff,
+      click_func: () => { toggleNewChatDialog(false); this.state.currentChatId = String(Date.now()); this.state.noContextMode = false; this.state.subjectMode = ""; this.state.prompt = ""; this.state.lastPrompt = ""; closeChatMenu(); resetToInput("Чат с памятью:") }
+    })
+    const dlgNoCtxBtn = hmUI.createWidget(hmUI.widget.BUTTON, {
+      x: 14, y: 146, w: 166, h: 46, text: "БЕЗ КОНТЕКСТА", text_size: 14, radius: 10, normal_color: 0x662299, press_color: 0x8833cc,
+      click_func: () => { toggleNewChatDialog(false); this.state.currentChatId = String(Date.now()); this.state.noContextMode = true; this.state.subjectMode = ""; this.state.prompt = ""; this.state.lastPrompt = ""; closeChatMenu(); resetToInput("Чат без памяти:") }
+    })
+    const dlgPresetsBtn = hmUI.createWidget(hmUI.widget.BUTTON, {
+      x: 14, y: 200, w: 166, h: 46, text: "ПРЕСЕТЫ (14)", text_size: 14, radius: 10, normal_color: 0x1b662e, press_color: 0x288840,
+      click_func: () => { toggleNewChatDialog(false); togglePresetsDialog(true) }
+    })
+    const dlgCancelBtn = hmUI.createWidget(hmUI.widget.BUTTON, {
+      x: 14, y: 256, w: 166, h: 42, text: "ОТМЕНА", text_size: 14, radius: 10, normal_color: 0x333333, press_color: 0x555555,
+      click_func: () => toggleNewChatDialog(false)
+    })
+
+    const prTitle = hmUI.createWidget(hmUI.widget.TEXT, { x: 8, y: 54, w: 178, h: 26, text: "Выберите предмет:", text_size: 14, color: 0x00ff88, align_h: hmUI.align.CENTER_H })
+    prTitle.setProperty(hmUI.prop.VISIBLE, false)
+    for (let sIdx = 0; sIdx < SUBJECTS.length; sIdx++) {
+      const subj = SUBJECTS[sIdx]
+      const isHard = sIdx >= 10
+      const pBtn = hmUI.createWidget(hmUI.widget.BUTTON, {
+        x: 8, y: 84 + sIdx * 42, w: 178, h: 38, text: subj, text_size: 13, radius: 9,
+        normal_color: isHard ? 0x3b222a : 0x1e2a38, press_color: isHard ? 0x5c3340 : 0x2c4257,
+        click_func: () => {
+          togglePresetsDialog(false)
+          this.state.currentChatId = String(Date.now())
+          this.state.noContextMode = false
+          this.state.subjectMode = subj
+          this.state.prompt = ""; this.state.lastPrompt = ""
+          closeChatMenu()
+          resetToInput("[" + subj + "]:")
+        }
+      })
+      pBtn.setProperty(hmUI.prop.VISIBLE, false)
+      presetBtns.push(pBtn)
+    }
+    const prBackBtn = hmUI.createWidget(hmUI.widget.BUTTON, {
+      x: 8, y: 84 + SUBJECTS.length * 42 + 4, w: 178, h: 42, text: "<- НАЗАД", text_size: 14, radius: 10, normal_color: 0x333333, press_color: 0x555555,
+      click_func: () => { togglePresetsDialog(false); toggleNewChatDialog(true) }
+    })
+    prBackBtn.setProperty(hmUI.prop.VISIBLE, false)
+
+    const togglePresetsDialog = (show) => {
+      setPageScroll(show)
+      prTitle.setProperty(hmUI.prop.VISIBLE, show)
+      prBackBtn.setProperty(hmUI.prop.VISIBLE, show)
+      for (let i = 0; i < presetBtns.length; i++) presetBtns[i].setProperty(hmUI.prop.VISIBLE, show)
+      newChatMenuBtn.setProperty(hmUI.prop.VISIBLE, !show && this.state.isMenuOpen)
+      if (!show && this.state.isMenuOpen) renderChatSlots()
+    }
+
     const toggleNewChatDialog = (show) => {
+      setPageScroll(false)
       dlgBg.setProperty(hmUI.prop.VISIBLE, show); dlgTitle.setProperty(hmUI.prop.VISIBLE, show)
-      dlgCtxBtn.setProperty(hmUI.prop.VISIBLE, show); dlgNoCtxBtn.setProperty(hmUI.prop.VISIBLE, show); dlgCancelBtn.setProperty(hmUI.prop.VISIBLE, show)
+      dlgCtxBtn.setProperty(hmUI.prop.VISIBLE, show); dlgNoCtxBtn.setProperty(hmUI.prop.VISIBLE, show)
+      dlgPresetsBtn.setProperty(hmUI.prop.VISIBLE, show); dlgCancelBtn.setProperty(hmUI.prop.VISIBLE, show)
       newChatMenuBtn.setProperty(hmUI.prop.VISIBLE, !show && this.state.isMenuOpen)
       if (show) { for (let i = 0; i < 5; i++) { chatSlotBtns[i].setProperty(hmUI.prop.VISIBLE, false); chatDelBtns[i].setProperty(hmUI.prop.VISIBLE, false) } }
-      else if (this.state.isMenuOpen) renderChatSlots()
-    }
-    toggleNewChatDialog(false)
+
+
+    for (let i = 0; i < 5; i++) { chatSlotBtns[i].setProperty(hmUI.prop.VISIBLE, false); chatDelBtns[i].setProperty(hmUI.prop.VISIBLE, false) } }
 
     for (let i = 0; i < 5; i++) {
       const rowY = 100 + i * 44
@@ -170,7 +229,7 @@ Page({
     }
     const renderChatSlots = () => { for (let i = 0; i < 5; i++) { const item = this.state.chatList[i]; if (item) { chatSlotBtns[i].setProperty(hmUI.prop.TEXT, item.title); chatSlotBtns[i].setProperty(hmUI.prop.VISIBLE, true); chatDelBtns[i].setProperty(hmUI.prop.VISIBLE, true) } else { chatSlotBtns[i].setProperty(hmUI.prop.VISIBLE, false); chatDelBtns[i].setProperty(hmUI.prop.VISIBLE, false) } } }
     const openChatMenu = () => { this.state.isMenuOpen = true; this.state.isReading = false; setPageScroll(false); toggleKeyboard(false); positionAnswerBar(bottomY, false); displayBox.setProperty(hmUI.prop.VISIBLE, false); newChatMenuBtn.setProperty(hmUI.prop.VISIBLE, true); messageBuilder.request({ method: "GET_CHATS" }).then((res) => { this.state.chatList = (res && Array.isArray(res.chats)) ? res.chats : []; renderChatSlots() }).catch(() => renderChatSlots()) }
-    const closeChatMenu = () => { this.state.isMenuOpen = false; toggleNewChatDialog(false); newChatMenuBtn.setProperty(hmUI.prop.VISIBLE, false); for (let i = 0; i < 5; i++) { chatSlotBtns[i].setProperty(hmUI.prop.VISIBLE, false); chatDelBtns[i].setProperty(hmUI.prop.VISIBLE, false) } displayBox.setProperty(hmUI.prop.VISIBLE, true); if (this.state.isReading) { const barY = Math.max(bottomY, 50 + this.state.lastTextH + 10); positionAnswerBar(barY, true); setPageScroll(barY + bottomBtnH > H) } else { setPageScroll(false); toggleKeyboard(true) } }
+    const closeChatMenu = () => { this.state.isMenuOpen = false; toggleNewChatDialog(false); togglePresetsDialog(false); newChatMenuBtn.setProperty(hmUI.prop.VISIBLE, false); for (let i = 0; i < 5; i++) { chatSlotBtns[i].setProperty(hmUI.prop.VISIBLE, false); chatDelBtns[i].setProperty(hmUI.prop.VISIBLE, false) } displayBox.setProperty(hmUI.prop.VISIBLE, true); if (this.state.isReading) { const barY = Math.max(bottomY, 50 + this.state.lastTextH + 10); positionAnswerBar(barY, true); setPageScroll(barY + bottomBtnH > H) } else { setPageScroll(false); toggleKeyboard(true) } }
     const resetToInput = (placeholder) => { this.state.isReading = false; this.state.lastKey = -1; setPageScroll(false); positionAnswerBar(bottomY, false); displayBox.setProperty(hmUI.prop.VISIBLE, true); displayBox.setProperty(hmUI.prop.MORE, { x: 6, y: 50, w: 182, h: promptH, text: this.state.prompt || placeholder, text_size: 16, color: 0x00ff88 }); toggleKeyboard(true) }
 
     const sendPromptToAI = (textToSend, isRetry) => {
@@ -208,7 +267,7 @@ Page({
           chatId: this.state.currentChatId,
           jobId: myJobId,
           isRetry: Boolean(isRetry),
-          noContext: Boolean(this.state.noContextMode)
+          noContext: Boolean(this.state.noContextMode), subject: this.state.subjectMode, subject: this.state.subjectMode
         }
       })
         .then((data) => {
