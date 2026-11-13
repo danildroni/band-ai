@@ -41,7 +41,7 @@ Page({
     const keyButtons = []; const chatSlotBtns = []; const chatDelBtns = []
 
     const displayBox = hmUI.createWidget(hmUI.widget.TEXT, {
-      x: 0, y: 52, w: 192, h: promptH,
+      x: 10, y: 52, w: 180, h: promptH,
       text: "Новый диалог\nВведите запрос:", text_size: 16, color: 0x38bdf8,
       align_h: hmUI.align.LEFT,
       text_style: hmUI.text_style.WRAP
@@ -66,7 +66,7 @@ Page({
       click_func: () => {
         const cur = this.state.models[this.state.modelIdx]
         setPageScroll(false)
-        displayBox.setProperty(hmUI.prop.MORE, { x: 0, y: 52, w: 192, h: promptH, text: "Загрузка модели:\n" + cur, text_size: 15, color: 0x94a3b8 })
+        displayBox.setProperty(hmUI.prop.MORE, { x: 10, y: 52, w: 180, h: promptH, text: "Загрузка модели:\n" + cur, text_size: 15, color: 0x94a3b8 })
         messageBuilder.request({ method: "LOAD_MODEL", params: { model: cur } })
           .then((res) => displayBox.setProperty(hmUI.prop.TEXT, (res && res.msg) ? res.msg : "Модель готова"))
           .catch((e) => displayBox.setProperty(hmUI.prop.TEXT, String(e)))
@@ -125,7 +125,7 @@ Page({
       const textH = calcTextHeight(text)
       this.state.lastTextH = textH
       this.state.isReading = true
-      displayBox.setProperty(hmUI.prop.MORE, { x: 0, y: 52, w: 192, h: textH, text: text, text_size: 16, color: color || 0xf1f5f9 })
+      displayBox.setProperty(hmUI.prop.MORE, { x: 10, y: 52, w: 180, h: textH, text: text, text_size: 16, color: color || 0xf1f5f9 })
       const barY = Math.max(bottomY, 52 + textH + 10)
       positionAnswerBar(barY, true)
       setPageScroll(barY + bottomBtnH > H)
@@ -160,20 +160,20 @@ Page({
 
     for (let i = 0; i < 5; i++) {
       const rowY = 102 + i * 44
-      const cBtn = hmUI.createWidget(hmUI.widget.BUTTON, { x: 6, y: rowY, w: 142, h: 40, text: "", text_size: 14, radius: 12, normal_color: 0x1c212b, press_color: 0x2d3646, click_func: () => { const item = this.state.chatList[i]; if (!item) return; this.state.currentChatId = item.id; closeChatMenu(); toggleKeyboard(false); setPageScroll(false); displayBox.setProperty(hmUI.prop.MORE, { x: 0, y: 52, w: 192, h: promptH, text: "Открываю...", text_size: 16, color: 0x94a3b8 }); messageBuilder.request({ method: "OPEN_CHAT", params: { chatId: item.id } }).then((res) => { if (res && res.lastPrompt) this.state.lastPrompt = res.lastPrompt; showScrollableAnswer((res && res.transcript) ? res.transcript : "Пусто", 0xf1f5f9) }) } })
+      const cBtn = hmUI.createWidget(hmUI.widget.BUTTON, { x: 6, y: rowY, w: 142, h: 40, text: "", text_size: 14, radius: 12, normal_color: 0x1c212b, press_color: 0x2d3646, click_func: () => { const item = this.state.chatList[i]; if (!item) return; this.state.currentChatId = item.id; closeChatMenu(); toggleKeyboard(false); setPageScroll(false); displayBox.setProperty(hmUI.prop.MORE, { x: 10, y: 52, w: 180, h: promptH, text: "Открываю...", text_size: 16, color: 0x94a3b8 }); messageBuilder.request({ method: "OPEN_CHAT", params: { chatId: item.id } }).then((res) => { if (res && res.lastPrompt) this.state.lastPrompt = res.lastPrompt; showScrollableAnswer((res && res.transcript) ? res.transcript : "Пусто", 0xf1f5f9) }) } })
       const dBtn = hmUI.createWidget(hmUI.widget.BUTTON, { x: 151, y: rowY, w: 37, h: 40, text: "×", text_size: 18, radius: 12, normal_color: 0x3f1d24, press_color: 0x6b2835, click_func: () => { const item = this.state.chatList[i]; if (!item) return; messageBuilder.request({ method: "DELETE_CHAT", params: { chatId: item.id } }).then((res) => { this.state.chatList = (res && Array.isArray(res.chats)) ? res.chats : []; renderChatSlots() }) } })
       cBtn.setProperty(hmUI.prop.VISIBLE, false); dBtn.setProperty(hmUI.prop.VISIBLE, false); chatSlotBtns.push(cBtn); chatDelBtns.push(dBtn)
     }
     const renderChatSlots = () => { for (let i = 0; i < 5; i++) { const item = this.state.chatList[i]; if (item) { chatSlotBtns[i].setProperty(hmUI.prop.TEXT, item.title); chatSlotBtns[i].setProperty(hmUI.prop.VISIBLE, true); chatDelBtns[i].setProperty(hmUI.prop.VISIBLE, true) } else { chatSlotBtns[i].setProperty(hmUI.prop.VISIBLE, false); chatDelBtns[i].setProperty(hmUI.prop.VISIBLE, false) } } }
     const openChatMenu = () => { this.state.isMenuOpen = true; this.state.isReading = false; setPageScroll(false); toggleKeyboard(false); positionAnswerBar(bottomY, false); displayBox.setProperty(hmUI.prop.VISIBLE, false); newChatMenuBtn.setProperty(hmUI.prop.VISIBLE, true); messageBuilder.request({ method: "GET_CHATS" }).then((res) => { this.state.chatList = (res && Array.isArray(res.chats)) ? res.chats : []; renderChatSlots() }).catch(() => renderChatSlots()) }
     const closeChatMenu = () => { this.state.isMenuOpen = false; toggleNewChatDialog(false); newChatMenuBtn.setProperty(hmUI.prop.VISIBLE, false); for (let i = 0; i < 5; i++) { chatSlotBtns[i].setProperty(hmUI.prop.VISIBLE, false); chatDelBtns[i].setProperty(hmUI.prop.VISIBLE, false) } displayBox.setProperty(hmUI.prop.VISIBLE, true); if (this.state.isReading) { const barY = Math.max(bottomY, 52 + this.state.lastTextH + 10); positionAnswerBar(barY, true); setPageScroll(barY + bottomBtnH > H) } else { setPageScroll(false); toggleKeyboard(true) } }
-    const resetToInput = (placeholder) => { this.state.isReading = false; this.state.lastKey = -1; setPageScroll(false); positionAnswerBar(bottomY, false); displayBox.setProperty(hmUI.prop.VISIBLE, true); displayBox.setProperty(hmUI.prop.MORE, { x: 0, y: 52, w: 192, h: promptH, text: this.state.prompt || placeholder, text_size: 16, color: 0x38bdf8 }); toggleKeyboard(true) }
+    const resetToInput = (placeholder) => { this.state.isReading = false; this.state.lastKey = -1; setPageScroll(false); positionAnswerBar(bottomY, false); displayBox.setProperty(hmUI.prop.VISIBLE, true); displayBox.setProperty(hmUI.prop.MORE, { x: 10, y: 52, w: 180, h: promptH, text: this.state.prompt || placeholder, text_size: 16, color: 0x38bdf8 }); toggleKeyboard(true) }
 
     const sendPromptToAI = (textToSend, isRetry) => {
       this.state.lastPrompt = textToSend; this.state.isReading = false; setPageScroll(false)
       const selectedModel = this.state.models[this.state.modelIdx]; const myJobId = String(Date.now())
       toggleKeyboard(false); positionAnswerBar(bottomY, false)
-      displayBox.setProperty(hmUI.prop.MORE, { x: 0, y: 52, w: 192, h: promptH, text: "Думаю (0с)...", text_size: 16, color: 0x94a3b8 })
+      displayBox.setProperty(hmUI.prop.MORE, { x: 10, y: 52, w: 180, h: promptH, text: "Думаю (0с)...", text_size: 16, color: 0x94a3b8 })
       const pollAnswer = (attempt) => {
         if (this.state.isReading || this.state.isMenuOpen) return
         if (attempt > 45) { showScrollableAnswer("Долгий ответ. Нажмите Ещё", 0xf1f5f9); return }
@@ -196,12 +196,12 @@ Page({
     let lockTimer = null
     const renderTypingPrompt = () => {
       if (!this.state.prompt) {
-        displayBox.setProperty(hmUI.prop.MORE, { x: 0, y: 52, w: 192, h: promptH, text: "Введите запрос:", text_size: 16, color: 0x38bdf8 })
+        displayBox.setProperty(hmUI.prop.MORE, { x: 10, y: 52, w: 180, h: promptH, text: "Введите запрос:", text_size: 16, color: 0x38bdf8 })
         return
       }
       const isEditing = this.state.lastKey !== -1
       displayBox.setProperty(hmUI.prop.MORE, {
-        x: 0, y: 52, w: 192, h: promptH,
+        x: 10, y: 52, w: 180, h: promptH,
         text: isEditing ? (this.state.prompt.slice(0, -1) + "[" + this.state.prompt.slice(-1) + "]") : this.state.prompt,
         text_size: 16,
         color: isEditing ? 0xfbbf24 : 0x38bdf8
@@ -240,7 +240,7 @@ Page({
       keyButtons.push(btn)
     }
     const langBtn = hmUI.createWidget(hmUI.widget.BUTTON, { x: 4, y: bottomY, w: 56, h: bottomBtnH, text: "РУС", text_size: 15, radius: 14, normal_color: 0x252c38, press_color: 0x3b4659, click_func: () => { this.state.modeIdx = (this.state.modeIdx + 1) % MODES.length; this.state.lastKey = -1; updateKeyboardLabels() } })
-    const delBtn = hmUI.createWidget(hmUI.widget.BUTTON, { x: 64, y: bottomY, w: 50, h: bottomBtnH, text: "⌫", text_size: 18, radius: 14, normal_color: 0x252c38, press_color: 0x3b4659, click_func: () => { this.state.prompt = this.state.prompt.slice(0, -1); this.state.lastKey = -1; renderTypingPrompt() } })
+    const delBtn = hmUI.createWidget(hmUI.widget.BUTTON, { x: 64, y: bottomY, w: 50, h: bottomBtnH, text: "<", text_size: 22, radius: 14, normal_color: 0x252c38, press_color: 0x3b4659, click_func: () => { this.state.prompt = this.state.prompt.slice(0, -1); this.state.lastKey = -1; renderTypingPrompt() } })
     const askBtn = hmUI.createWidget(hmUI.widget.BUTTON, { x: 118, y: bottomY, w: 72, h: bottomBtnH, text: "Отпр", text_size: 16, radius: 14, normal_color: 0x2b7fff, press_color: 0x1d4ed8, click_func: () => { if (!this.state.prompt.trim()) { displayBox.setProperty(hmUI.prop.TEXT, "Введите текст!"); return } sendPromptToAI(this.state.prompt, false) } })
 
 

@@ -163,13 +163,20 @@ AppSideService({
           content: "Ты русскоязычный справочник-ассистент на часах. Текущий год 2026. ОБЯЗАТЕЛЬНО учитывай все предыдущие сообщения и ответы в этом диалоге, связывая каждый новый запрос с общим контекстом переписки. ПИШИ ТОЛЬКО НА РУССКОМ КИРИЛЛИЦЕЙ без звёздочек, иероглифов и встречных вопросов."
         }
 
-        fetch({
-          url: BASE_URL + "/v1/chat/completions",
-          method: "POST",
-          timeout: 90000,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ model: modelId, messages: Array.of(sysMsg).concat(history), temperature: 0.3, max_tokens: maxTokens })
-        })
+        fetch({ url: BASE_URL + "/v1/models", method: "GET", timeout: 3000 })
+          .then((mRes) => {
+            const md = typeof mRes.body === "string" ? JSON.parse(mRes.body) : mRes.body
+            const mList = (md && Array.isArray(md.data) ? md.data : []).map((m) => m.id).filter((id) => id && !id.toLowerCase().includes("embed"))
+            return mList.includes(modelId) ? modelId : (mList[0] || modelId)
+          })
+          .catch(() => modelId)
+          .then((activeModel) => fetch({
+            url: BASE_URL + "/v1/chat/completions",
+            method: "POST",
+            timeout: 90000,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ model: activeModel, messages: Array.of(sysMsg).concat(history), temperature: 0.3, max_tokens: maxTokens })
+          }))
           .then((res) => {
             let data = null
             try { data = typeof res.body === "string" ? JSON.parse(res.body) : res.body } catch (e) {}
