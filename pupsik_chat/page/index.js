@@ -22,7 +22,7 @@ Page({
     prompt: "", lastPrompt: "", lastKey: -1, charIndex: 0, lastTapTime: 0,
     modeIdx: 0, tokenIdx: 1, modelIdx: 0, models: Array.of("gemma-4-12b"),
     currentChatId: String(Date.now()), noContextMode: false, chatList: [],
-    isReading: false, isMenuOpen: false, lastTextH: 200
+    isReading: false, isMenuOpen: false, lastTextH: 200, lastAnswerText: ""
   },
   onInit() { if (typeof hmSetting !== "undefined" && hmSetting.setBrightScreen) hmSetting.setBrightScreen(300) },
   onDestroy() { if (typeof hmSetting !== "undefined" && hmSetting.setBrightScreenCancel) hmSetting.setBrightScreenCancel() },
@@ -94,7 +94,7 @@ Page({
     retryBtn.addEventListener(hmUI.event.CLICK_UP, () => {
       messageBuilder.request({ method: "CHECK_AI" }).then((st) => {
         if (st && st.done && st.answer) {
-          showScrollableAnswer(st.answer, 0xf1f5f9)
+          { this.state.lastAnswerText = st.answer; showScrollableAnswer(st.answer, 0xf1f5f9) }
         } else if (this.state.lastPrompt) {
           sendPromptToAI(this.state.lastPrompt, true)
         }
@@ -178,7 +178,7 @@ Page({
         messageBuilder.request({ method: "CHECK_AI" })
           .then((st) => {
             if (this.state.isReading) return
-            if (st && st.done && st.id === myJobId && st.answer) showScrollableAnswer(st.answer, 0xf1f5f9)
+            if (st && st.done && st.answer && st.answer !== this.state.lastAnswerText) { this.state.lastAnswerText = st.answer; showScrollableAnswer(st.answer, 0xf1f5f9) }
             else setTimeout(() => pollAnswer(attempt + 1), 1500)
           })
           .catch(() => setTimeout(() => pollAnswer(attempt + 1), 1500))
