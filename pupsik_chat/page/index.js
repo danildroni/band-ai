@@ -126,6 +126,10 @@ Page({
     positionAnswerBar(bottomY, false)
 
     const showScrollableAnswer = (text, color) => {
+      if (String(text).includes("Network Error") && !this.state.isReading) {
+        setTimeout(() => pollAnswer(8), 1500)
+        return
+      }
       const textH = calcTextHeight(text)
       this.state.lastTextH = textH
       this.state.isReading = true
