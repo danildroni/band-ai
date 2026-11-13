@@ -174,20 +174,48 @@ Page({
     const resetToInput = (placeholder) => { this.state.isReading = false; this.state.lastKey = -1; setPageScroll(false); positionAnswerBar(bottomY, false); displayBox.setProperty(hmUI.prop.VISIBLE, true); displayBox.setProperty(hmUI.prop.MORE, { x: 6, y: 50, w: 182, h: promptH, text: this.state.prompt || placeholder, text_size: 16, color: 0x00ff88 }); toggleKeyboard(true) }
 
     const sendPromptToAI = (textToSend, isRetry) => {
-      this.state.lastPrompt = textToSend; this.state.isReading = false; setPageScroll(false)
-      const selectedModel = this.state.models[this.state.modelIdx]; const myJobId = String(Date.now())
+      this.state.lastPrompt = textToSend; this.state.isReading = false
+      const selectedModel = this.state.models[this.state.modelIdx]
+      const myJobId = String(Date.now())
       toggleKeyboard(false); positionAnswerBar(bottomY, false)
-      displayBox.setProperty(hmUI.prop.MORE, { x: 6, y: 50, w: 182, h: promptH, text: "Думаю...", text_size: 16, color: 0xffffff })
+      displayBox.setProperty(hmUI.prop.MORE, { x: 6, y: 50, w: 182, h: promptH, text: "Думаю (0с)...", text_size: 16, color: 0xffffff })
+
       const pollAnswer = (attempt) => {
-        if (attempt > 300) { showScrollableAnswer("Ещё думает... Нажмите ПОВ", 0xffffff); return }
-        displayBox.setProperty(hmUI.prop.TEXT, "Думаю (" + attempt + "/300)...")
-        messageBuilder.request({ method: "CHECK_AI" }).then((st) => {
-          if (st && st.done && st.answer) showScrollableAnswer(st.answer, 0xffffff)
-          else pollAnswer(attempt + 1)
-        }).catch(() => pollAnswer(attempt + 1))
+        if (this.state.isReading || this.state.isMenuOpen) return
+        if (attempt > 45) {
+          showScrollableAnswer("Долгий ответ. Нажмите ПОВ", 0xffffff); return
+        }
+        const sec = Math.round(attempt * 1.5)
+        displayBox.setProperty(hmUI.prop.TEXT, "Думаю (" + sec + "с)...")
+        messageBuilder.request({ method: "CHECK_AI" })
+          .then((st) => {
+            if (this.state.isReading) return
+            if (st && st.done && st.answer) {
+              showScrollableAnswer(st.answer, 0xffffff)
+            } else {
+              setTimeout(() => pollAnswer(attempt + 1), 1500)
+            }
+          })
+          .catch(() => setTimeout(() => pollAnswer(attempt + 1), 1500))
       }
-      messageBuilder.request({ method: "ASK_AI", params: { prompt: encodeURIComponent(textToSend), max_tokens: TOKEN_PRESETS[this.state.tokenIdx], model: selectedModel, chatId: this.state.currentChatId, jobId: myJobId, isRetry: Boolean(isRetry), noContext: Boolean(this.state.noContextMode) } })
-        .then((data) => { if (data && data.chatId) this.state.currentChatId = data.chatId; if (data && data.answer) showScrollableAnswer(data.answer, 0xffffff); else pollAnswer(1) })
+
+      messageBuilder.request({
+        method: "ASK_AI",
+        params: {
+          prompt: encodeURIComponent(textToSend),
+          max_tokens: TOKEN_PRESETS[this.state.tokenIdx],
+          model: selectedModel,
+          chatId: this.state.currentChatId,
+          jobId: myJobId,
+          isRetry: Boolean(isRetry),
+          noContext: Boolean(this.state.noContextMode)
+        }
+      })
+        .then((data) => {
+          if (data && data.chatId) this.state.currentChatId = data.chatId
+          if (data && data.answer) showScrollableAnswer(data.answer, 0xffffff)
+          else setTimeout(() => pollAnswer(1), 1500)
+        })
         .catch((err) => showScrollableAnswer("Сбой: " + String(err), 0xff6666))
     }
 
