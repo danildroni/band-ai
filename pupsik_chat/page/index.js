@@ -12,9 +12,9 @@ const calcTextHeight = (text) => {
   const paras = String(text || "").split("\n")
   let lines = 0
   for (let i = 0; i < paras.length; i++) {
-    lines += Math.max(1, Math.ceil(paras[i].length / 19))
+    lines += Math.max(1, Math.ceil(paras[i].length / 15))
   }
-  return Math.max(180, lines * 23 + 16)
+  return Math.max(180, lines * 27 + 44)
 }
 
 Page({
@@ -92,7 +92,7 @@ Page({
       normal_color: 0x226633, press_color: 0x339944,
       click_func: () => {
         messageBuilder.request({ method: "CHECK_AI" }).then((st) => {
-          if (st && st.done && st.answer) showScrollableAnswer(st.answer, 0xffffff)
+          if (st && st.done === true && st.id === myJobId && st.answer) showScrollableAnswer(st.answer, 0xffffff)
           else if (this.state.lastPrompt) sendPromptToAI(this.state.lastPrompt, true)
         }).catch(() => { if (this.state.lastPrompt) sendPromptToAI(this.state.lastPrompt, true) })
       }
@@ -163,10 +163,10 @@ Page({
       toggleKeyboard(false); positionAnswerBar(bottomY, false)
       displayBox.setProperty(hmUI.prop.MORE, { x: 6, y: 50, w: 182, h: promptH, text: "Думаю...", text_size: 16, color: 0xffffff })
       const pollAnswer = (attempt) => {
-        if (attempt > 150) { showScrollableAnswer("Ещё думает... Нажмите ПОВ", 0xffffff); return }
-        displayBox.setProperty(hmUI.prop.TEXT, "Думаю (" + attempt + "/150)...")
+        if (attempt > 300) { showScrollableAnswer("Ещё думает... Нажмите ПОВ", 0xffffff); return }
+        displayBox.setProperty(hmUI.prop.TEXT, "Думаю (" + attempt + "/300)...")
         messageBuilder.request({ method: "CHECK_AI" }).then((st) => {
-          if (st && st.done && st.answer) showScrollableAnswer(st.answer, 0xffffff)
+          if (st && st.done === true && st.id === myJobId && st.answer) showScrollableAnswer(st.answer, 0xffffff)
           else pollAnswer(attempt + 1)
         }).catch(() => pollAnswer(attempt + 1))
       }
