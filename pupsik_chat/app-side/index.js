@@ -143,7 +143,7 @@ AppSideService({
         const baseQ = isShortFollowUp ? (prevUserQ + " " + cleanPrompt).trim() : cleanPrompt
         const isLit = activeSubj === "Литература"
         const searchQuery = (activeSubj && !isEnglishOnly) ? (isLit ? ("произведение " + baseQ + " пьеса роман автор") : (baseQ + " " + activeSubj)).trim() : baseQ
-        const contextPromise = isEnglishOnly ? Promise.resolve("") : searchWebContext(searchQuery)
+        const contextPromise = (isEnglishOnly || isLit) ? Promise.resolve("") : searchWebContext(searchQuery)
 
         contextPromise.then((webInfo) => {
           let expandedPrompt = cleanPrompt
