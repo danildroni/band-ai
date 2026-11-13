@@ -139,7 +139,8 @@ AppSideService({
         const wordsCount = cleanPrompt.split(/\s+/).length
         const isShortFollowUp = !chat.noContext && chat.messages.length > 0 && wordsCount <= 3
         const prevUserQ = isShortFollowUp ? getLastUserPrompt(chat.messages) : ""
-        const searchQuery = isShortFollowUp ? (prevUserQ + " " + cleanPrompt).trim() : cleanPrompt
+        const baseQ = isShortFollowUp ? (prevUserQ + " " + cleanPrompt).trim() : cleanPrompt
+        const searchQuery = (subject && !isEnglishOnly) ? (baseQ + " " + subject).trim() : baseQ
         const contextPromise = isEnglishOnly ? Promise.resolve("") : searchWebContext(searchQuery)
 
         contextPromise.then((webInfo) => {
@@ -149,7 +150,11 @@ AppSideService({
           } else if (isShortFollowUp) {
             expandedPrompt = "Уточнение к предыдущему вопросу в диалоге: " + cleanPrompt + ". Раскрой предыдущую тему с учётом этого уточнения, не давая определение самого слова."
           } else if (wordsCount <= 2 && !cleanPrompt.includes("?")) {
-            expandedPrompt = "Что такое " + cleanPrompt + "? Дай подробное, точное и понятное объяснение на русском языке."
+            expandedPrompt = subject
+              ? "Предмет: " + subject + ". Объясни, что означает «" + cleanPrompt + "» именно в рамках предмета " + subject + " (произведение, автор, термин или явление из этой науки)."
+              : "Что такое " + cleanPrompt + "? Дай подробное, точное и понятное объяснение на русском языке."
+          } else if (subject && !isEnglishOnly) {
+            expandedPrompt = "Предмет: " + subject + ". Вопрос: " + cleanPrompt
           }
 
           const retryHint = isRetry ? " (сформулируй ответ заново, другими словами)" : ""
