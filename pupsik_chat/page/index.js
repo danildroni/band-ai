@@ -263,7 +263,7 @@ Page({
       messageBuilder.request({
         method: "ASK_AI",
         params: {
-          prompt: encodeURIComponent(textToSend),
+          prompt: encodeURIComponent((this.state.subjectMode ? "[" + this.state.subjectMode + "] " : "") + textToSend),
           max_tokens: TOKEN_PRESETS[this.state.tokenIdx],
           model: selectedModel,
           chatId: this.state.currentChatId,
