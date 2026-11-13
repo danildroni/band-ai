@@ -98,8 +98,11 @@ AppSideService({
         ctx.response({ data: { chats: chats.map((c) => ({ id: c.id, title: c.title })) } })
       }
       let promptBuffer = ""
-      if (jsonRpc.method === "CLEAR_BUF") { promptBuffer = ""; ctx.response({ data: { ok: 1 } }) }
-      if (jsonRpc.method === "ADD_PART") { promptBuffer += String(jsonRpc.params.p || ""); ctx.response({ data: { ok: 1 } }) }
+      if (jsonRpc.method === "ADD_PART") {
+        if (jsonRpc.params.reset) promptBuffer = ""
+        promptBuffer += String(jsonRpc.params.p || "")
+        ctx.response({ data: { ok: 1 } })
+      }
       if (jsonRpc.method === "CHECK_AI") ctx.response({ data: loadJob() })
 
       if (jsonRpc.method === "ASK_AI") {

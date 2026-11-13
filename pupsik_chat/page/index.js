@@ -177,7 +177,7 @@ Page({
       this.state.lastPrompt = textToSend; this.state.isReading = false; setPageScroll(false)
       const selectedModel = this.state.models[this.state.modelIdx]; const myJobId = String(Date.now()).slice(-6)
       toggleKeyboard(false); positionAnswerBar(bottomY, false)
-      displayBox.setProperty(hmUI.prop.MORE, { x: 10, y: 52, w: 180, h: promptH, text: "Передаю...", text_size: 16, color: 0x94a3b8 })
+      displayBox.setProperty(hmUI.prop.MORE, { x: 10, y: 52, w: 180, h: promptH, text: "Передаю...", text_size: 16, color: 0xffffff })
 
       const pollAnswer = (attempt) => {
         if (this.state.isReading || this.state.isMenuOpen) return
@@ -217,14 +217,12 @@ Page({
             .catch((err) => showScrollableAnswer("Сбой: " + String(err), 0xf87171))
           return
         }
-        messageBuilder.request({ method: "ADD_PART", params: { p: chunks[idx] } })
+        messageBuilder.request({ method: "ADD_PART", params: { p: chunks[idx], reset: idx === 0 ? 1 : 0 } })
           .then(() => sendNextChunk(idx + 1))
           .catch((err) => showScrollableAnswer("Сбой пакета: " + String(err), 0xf87171))
       }
 
-      messageBuilder.request({ method: "CLEAR_BUF" })
-        .then(() => sendNextChunk(0))
-        .catch((err) => showScrollableAnswer("Нет связи: " + String(err), 0xf87171))
+      sendNextChunk(0)
     }
 
     const SPACE_KEY = String.fromCharCode(95, 95, 95)
