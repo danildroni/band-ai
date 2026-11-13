@@ -92,13 +92,21 @@ Page({
     const retryBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 66, y: bottomY, w: 56, h: bottomBtnH, radius: 14, color: 0x1c212b })
     const retryBtn = hmUI.createWidget(hmUI.widget.TEXT, { x: 66, y: bottomY, w: 56, h: bottomBtnH, text: "Ещё", text_size: 14, color: 0xe2e8f0, align_h: hmUI.align.CENTER_H, align_v: hmUI.align.CENTER_V })
     retryBtn.addEventListener(hmUI.event.CLICK_UP, () => {
+      displayBox.setProperty(hmUI.prop.TEXT, "Проверяю...")
       messageBuilder.request({ method: "CHECK_AI" }).then((st) => {
-        if (st && st.done && st.answer) {
-          { this.state.lastAnswerText = st.answer; showScrollableAnswer(st.answer, 0xf1f5f9) }
+        if (st && st.done && st.answer && st.answer !== this.state.lastAnswerText) {
+          this.state.lastAnswerText = st.answer
+          showScrollableAnswer(st.answer, 0xf1f5f9)
         } else if (this.state.lastPrompt) {
+          this.state.lastAnswerText = ""
           sendPromptToAI(this.state.lastPrompt, true)
         }
-      }).catch(() => { if (this.state.lastPrompt) sendPromptToAI(this.state.lastPrompt, true) })
+      }).catch(() => {
+        if (this.state.lastPrompt) {
+          this.state.lastAnswerText = ""
+          sendPromptToAI(this.state.lastPrompt, true)
+        }
+      })
     })
 
     const backBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 126, y: bottomY, w: 64, h: bottomBtnH, radius: 14, color: 0x2b7fff })
@@ -167,9 +175,10 @@ Page({
 
     const sendPromptToAI = (textToSend, isRetry) => {
       this.state.lastPrompt = textToSend; this.state.isReading = false; setPageScroll(false)
-      const selectedModel = this.state.models[this.state.modelIdx]; const myJobId = String(Date.now())
+      const selectedModel = this.state.models[this.state.modelIdx]; const myJobId = String(Date.now()).slice(-6)
       toggleKeyboard(false); positionAnswerBar(bottomY, false)
-      displayBox.setProperty(hmUI.prop.MORE, { x: 10, y: 52, w: 180, h: promptH, text: "Думаю (0с)...", text_size: 16, color: 0x94a3b8 })
+      displayBox.setProperty(hmUI.prop.MORE, { x: 10, y: 52, w: 180, h: promptH, text: "Передаю...", text_size: 16, color: 0x94a3b8 })
+
       const pollAnswer = (attempt) => {
         if (this.state.isReading || this.state.isMenuOpen) return
         if (attempt > 65) { showScrollableAnswer("Долгий ответ. Нажмите Ещё", 0xf1f5f9); return }
@@ -178,14 +187,44 @@ Page({
         messageBuilder.request({ method: "CHECK_AI" })
           .then((st) => {
             if (this.state.isReading) return
-            if (st && st.done && st.answer && st.answer !== this.state.lastAnswerText) { this.state.lastAnswerText = st.answer; showScrollableAnswer(st.answer, 0xf1f5f9) }
-            else setTimeout(() => pollAnswer(attempt + 1), 1500)
+            if (st && st.done && st.answer && st.answer !== this.state.lastAnswerText) {
+              this.state.lastAnswerText = st.answer
+              showScrollableAnswer(st.answer, 0xf1f5f9)
+            } else {
+              setTimeout(() => pollAnswer(attempt + 1), 1500)
+            }
           })
           .catch(() => setTimeout(() => pollAnswer(attempt + 1), 1500))
       }
-      messageBuilder.request({ method: "ASK_AI", params: { prompt: textToSend, max_tokens: TOKEN_PRESETS[this.state.tokenIdx], model: selectedModel, chatId: this.state.currentChatId.slice(-6), jobId: myJobId.slice(-6), isRetry: isRetry ? 1 : 0, noContext: this.state.noContextMode ? 1 : 0 } })
-        .then((data) => { if (data && data.chatId) this.state.currentChatId = data.chatId; if (data && data.answer) showScrollableAnswer(data.answer, 0xf1f5f9); else setTimeout(() => pollAnswer(1), 1500) })
-        .catch((err) => showScrollableAnswer("Сбой: " + String(err), 0xf87171))
+
+      const chunks = []
+      for (let i = 0; i < textToSend.length; i += 6) {
+        chunks.push(textToSend.slice(i, i + 6))
+      }
+
+      const sendNextChunk = (idx) => {
+        if (idx >= chunks.length) {
+          displayBox.setProperty(hmUI.prop.TEXT, "Думаю (0с)...")
+          messageBuilder.request({
+            method: "ASK_AI",
+            params: { useBuf: 1, max_tokens: TOKEN_PRESETS[this.state.tokenIdx], model: selectedModel, chatId: this.state.currentChatId.slice(-6), jobId: myJobId, isRetry: isRetry ? 1 : 0, noContext: this.state.noContextMode ? 1 : 0 }
+          })
+            .then((data) => {
+              if (data && data.chatId) this.state.currentChatId = data.chatId
+              if (data && data.answer) { this.state.lastAnswerText = data.answer; showScrollableAnswer(data.answer, 0xf1f5f9) }
+              else setTimeout(() => pollAnswer(1), 1500)
+            })
+            .catch((err) => showScrollableAnswer("Сбой: " + String(err), 0xf87171))
+          return
+        }
+        messageBuilder.request({ method: "ADD_PART", params: { p: chunks[idx] } })
+          .then(() => sendNextChunk(idx + 1))
+          .catch((err) => showScrollableAnswer("Сбой пакета: " + String(err), 0xf87171))
+      }
+
+      messageBuilder.request({ method: "CLEAR_BUF" })
+        .then(() => sendNextChunk(0))
+        .catch((err) => showScrollableAnswer("Нет связи: " + String(err), 0xf87171))
     }
 
     const SPACE_KEY = String.fromCharCode(95, 95, 95)

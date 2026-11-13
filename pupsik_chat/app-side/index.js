@@ -97,10 +97,14 @@ AppSideService({
         saveChats(chats)
         ctx.response({ data: { chats: chats.map((c) => ({ id: c.id, title: c.title })) } })
       }
+      let promptBuffer = ""
+      if (jsonRpc.method === "CLEAR_BUF") { promptBuffer = ""; ctx.response({ data: { ok: 1 } }) }
+      if (jsonRpc.method === "ADD_PART") { promptBuffer += String(jsonRpc.params.p || ""); ctx.response({ data: { ok: 1 } }) }
       if (jsonRpc.method === "CHECK_AI") ctx.response({ data: loadJob() })
 
       if (jsonRpc.method === "ASK_AI") {
-        const cleanPrompt = (() => { try { return decodeURIComponent(jsonRpc.params.prompt) } catch (e) { return String(jsonRpc.params.prompt || "") } })()
+        const rawP = jsonRpc.params.useBuf ? promptBuffer : jsonRpc.params.prompt
+        const cleanPrompt = (() => { try { return decodeURIComponent(rawP) } catch (e) { return String(rawP || "") } })()
         const maxTokens = Number(jsonRpc.params.max_tokens) || 500
         const modelId = jsonRpc.params.model || "qwen2.5-7b-instruct"
         const chatId = jsonRpc.params.chatId || String(Date.now())
