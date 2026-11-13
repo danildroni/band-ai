@@ -66,7 +66,10 @@ const cleanOutputText = (rawText) => {
 }
 
 const searchWebContext = (query) => {
-  const kw = query.replace(/[?!.,;:()"]/g, " ").split(/\s+/).filter((w) => w.length > 1).join(" ") || query
+  let cleanQ = query.replace(/[?!.,;:()"]/g, " ")
+  const isLit = /(автор|написал|сюжет|герои|пьес|роман|стих|поэм|книг)/.test(cleanQ)
+  cleanQ = cleanQ.replace(/\b(кто|такой|такая|автор|написал|написала|про|что|такое|сюжет)\b/g, " ")
+  const kw = (cleanQ.split(/\s+/).filter((w) => w.length > 1).join(" ") + (isLit ? " произведение" : "")).trim() || query
   return fetch({ url: "https://wikipedia.org" + encodeURIComponent(kw) + "&utf8=&format=json&srlimit=2", method: "GET", timeout: 2500 })
     .then((res) => {
       const data = typeof res.body === "string" ? JSON.parse(res.body) : res.body
@@ -146,9 +149,10 @@ AppSideService({
             expandedPrompt = "Что такое " + cleanPrompt + "? Дай подробное, точное и понятное объяснение на русском языке."
           }
 
+          const retryHint = isRetry ? " (сформулируй ответ заново, другими словами)" : ""
           const userContent = webInfo
-            ? "Справка:\n" + webInfo.slice(0, 700) + "\n\nВопрос: " + expandedPrompt
-            : expandedPrompt
+            ? "Справка:\n" + webInfo.slice(0, 700) + "\n\nВопрос: " + expandedPrompt + retryHint
+            : expandedPrompt + retryHint
 
           const history = chat.noContext
             ? Array.of({ role: "user", content: userContent })
@@ -156,7 +160,7 @@ AppSideService({
 
           const sysMsg = {
             role: "system",
-            content: "Ты русскоязычный справочник-ассистент на часах. Текущий год 2026. ПИШИ ТОЛЬКО НА РУССКОМ КИРИЛЛИЦЕЙ без звёздочек и вступлений. НИКОГДА не задавай встречных вопросов пользователю и не спрашивай чем помочь — сразу давай полный ответ и заканчивай точкой."
+            content: "Ты русскоязычный справочник-ассистент на часах. Текущий год 2026. ПИШИ ТОЛЬКО НА РУССКОМ КИРИЛЛИЦЕЙ без звёздочек и вступлений. Если Справка не подходит по смыслу к вопросу — игнорируй её. НИКОГДА не задавай встречных вопросов пользователю и не спрашивай чем помочь — сразу давай полный ответ и заканчивай точкой."
           }
 
           fetch({
@@ -164,7 +168,7 @@ AppSideService({
             method: "POST",
             timeout: 90000,
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ model: modelId, messages: Array.of(sysMsg).concat(history), temperature: 0.3, max_tokens: maxTokens })
+            body: JSON.stringify({ model: modelId, messages: Array.of(sysMsg).concat(history), temperature: isRetry ? 0.85 : 0.1, max_tokens: maxTokens })
           })
             .then((res) => {
               let data = null
