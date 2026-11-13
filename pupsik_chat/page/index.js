@@ -92,17 +92,13 @@ Page({
     const retryBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 66, y: bottomY, w: 56, h: bottomBtnH, radius: 14, color: 0x1c212b })
     const retryBtn = hmUI.createWidget(hmUI.widget.TEXT, { x: 66, y: bottomY, w: 56, h: bottomBtnH, text: "Ещё", text_size: 14, color: 0xe2e8f0, align_h: hmUI.align.CENTER_H, align_v: hmUI.align.CENTER_V })
     retryBtn.addEventListener(hmUI.event.CLICK_UP, () => {
-      if (this.state.lastPrompt) {
-        sendPromptToAI(this.state.lastPrompt, true)
-      } else {
-        messageBuilder.request({ method: "OPEN_CHAT", params: { chatId: this.state.currentChatId } })
-          .then((res) => {
-            if (res && res.lastPrompt) {
-              this.state.lastPrompt = res.lastPrompt
-              sendPromptToAI(res.lastPrompt, true)
-            }
-          })
-      }
+      messageBuilder.request({ method: "CHECK_AI" }).then((st) => {
+        if (st && st.done && st.answer) {
+          showScrollableAnswer(st.answer, 0xf1f5f9)
+        } else if (this.state.lastPrompt) {
+          sendPromptToAI(this.state.lastPrompt, true)
+        }
+      }).catch(() => { if (this.state.lastPrompt) sendPromptToAI(this.state.lastPrompt, true) })
     })
 
     const backBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 126, y: bottomY, w: 64, h: bottomBtnH, radius: 14, color: 0x2b7fff })
@@ -176,7 +172,7 @@ Page({
       displayBox.setProperty(hmUI.prop.MORE, { x: 10, y: 52, w: 180, h: promptH, text: "Думаю (0с)...", text_size: 16, color: 0x94a3b8 })
       const pollAnswer = (attempt) => {
         if (this.state.isReading || this.state.isMenuOpen) return
-        if (attempt > 45) { showScrollableAnswer("Долгий ответ. Нажмите Ещё", 0xf1f5f9); return }
+        if (attempt > 65) { showScrollableAnswer("Долгий ответ. Нажмите Ещё", 0xf1f5f9); return }
         const sec = Math.round(attempt * 1.5)
         displayBox.setProperty(hmUI.prop.TEXT, "Думаю (" + sec + "с)...")
         messageBuilder.request({ method: "CHECK_AI" })
