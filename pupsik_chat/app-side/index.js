@@ -1,7 +1,7 @@
 import { MessageBuilder } from "../shared/message"
 
 const messageBuilder = new MessageBuilder()
-const PROXY_HOST = "https://long-snow-d028.danildroni10.workers.dev"
+const PROXY_HOST = "https://long-snow-d028" + ".danildroni10.workers.dev"
 
 let activeJob = { id: "", done: false, answer: "", chatId: "" }
 
@@ -44,8 +44,8 @@ AppSideService({
     messageBuilder.listen(() => {})
     messageBuilder.on("request", (ctx) => {
       const jsonRpc = messageBuilder.buf2Json(ctx.request.payload)
-      if (jsonRpc.method === "GET_MODELS") ctx.response({ data: { models: Array.of("gemini-2.5-flash", "gemini-2.5-flash-lite") } })
-      if (jsonRpc.method === "LOAD_MODEL") ctx.response({ data: { msg: "Активна: " + String(jsonRpc.params.model || "gemini-2.5-flash") } })
+      if (jsonRpc.method === "GET_MODELS") ctx.response({ data: { models: Array.of("gemini-3-flash") } })
+      if (jsonRpc.method === "LOAD_MODEL") ctx.response({ data: { msg: "Активна: gemini-3-flash" } })
       if (jsonRpc.method === "GET_CHATS") ctx.response({ data: { chats: loadChats().map((c) => ({ id: c.id, title: c.title })) } })
       if (jsonRpc.method === "OPEN_CHAT") {
         const found = loadChats().find((c) => c.id === jsonRpc.params.chatId)
@@ -62,8 +62,6 @@ AppSideService({
         let cleanPrompt = String(jsonRpc.params.prompt || "").trim()
         try { if (cleanPrompt.includes("%")) cleanPrompt = decodeURIComponent(cleanPrompt).trim() } catch (e) {}
         const maxTokens = Number(jsonRpc.params.max_tokens) || 500
-        const rawModel = String(jsonRpc.params.model || "gemini-2.5-flash")
-        const modelId = rawModel.startsWith("gemini-") ? rawModel : "gemini-2.5-flash"
         const chatId = jsonRpc.params.chatId || String(Date.now())
         const isRetry = Boolean(jsonRpc.params.isRetry)
         const noContext = Boolean(jsonRpc.params.noContext)
@@ -93,7 +91,7 @@ AppSideService({
         }))
 
         fetch({
-          url: PROXY_HOST + "/v1beta/models/" + modelId + ":generateContent",
+          url: PROXY_HOST,
           method: "POST",
           timeout: 15000,
           headers: { "Content-Type": "application/json" },
