@@ -29,6 +29,11 @@ const saveChats = (chats) => {
 }
 const formatChatTranscript = (messages) => messages.map((m) => (m.role === "user" ? "▸ Вы:\n" : "✦ ИИ:\n") + m.content).join("\n\n")
 const getLastUserPrompt = (messages) => { for (let i = messages.length - 1; i >= 0; i--) { if (messages[i].role === "user") return messages[i].content } return "" }
+const STATS_KEY = "pupsik_stats"
+const CAP_T = 100000, CAP_R = 200
+const todayStr = () => { const d = new Date(); return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate() }
+const loadStats = () => { try { if (typeof settings !== "undefined" && settings.settingsStorage) { const raw = settings.settingsStorage.getItem(STATS_KEY); if (raw) { const o = JSON.parse(raw); if (o.d === todayStr()) return o } } } catch (e) {} return { d: todayStr(), t: 0, r: 0 } }
+const saveStats = (o) => { try { if (typeof settings !== "undefined" && settings.settingsStorage) settings.settingsStorage.setItem(STATS_KEY, JSON.stringify(o)) } catch (e) {} }
 const cleanOutputText = (rawText) => String(rawText || "").replace(/[*#_`~]/g, "").replace(/\n{3,}/g, "\n\n").trim()
 
 AppSideService({
@@ -59,6 +64,7 @@ AppSideService({
         ctx.response({ data: { chats: chats.map((c) => ({ id: c.id, title: c.title })) } })
       }
       if (jsonRpc.method === "CHECK_AI") ctx.response({ data: activeJob })
+      if (jsonRpc.method === "GET_STATS") { const st = loadStats(); ctx.response({ data: { t: st.t, r: st.r, capT: CAP_T, capR: CAP_R, d: st.d } }) }
 
       if (jsonRpc.method === "ASK_AI") {
         let cleanPrompt
@@ -107,6 +113,8 @@ AppSideService({
             const content = parts.map((p) => p.text || "").join("")
             log("FETCH status:", res.status, "content len:", content.length)
             if (content) {
+              const used = (data && data.usageMetadata && data.usageMetadata.totalTokenCount) || 0
+              const stx = loadStats(); stx.t += used; stx.r += 1; saveStats(stx)
               const out = cleanOutputText(content) || content
               let freshChats = loadChats()
               let freshChat = freshChats.find((c) => c.id === chatId) || chat

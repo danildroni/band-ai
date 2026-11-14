@@ -48,14 +48,14 @@ Page({
     })
     const shortName = (id) => id.replace("-instruct", "").replace("-qat", "").slice(0, 9)
     const chatsBtn = hmUI.createWidget(hmUI.widget.BUTTON, {
-      x: 4, y: 8, w: 54, h: 36, text: "Чаты", text_size: 13, radius: 14,
+      x: 4, y: 8, w: 92, h: 40, text: "Чаты", text_size: 15, radius: 14,
       normal_color: 0x1c212b, press_color: 0x2d3646,
       click_func: () => { if (this.state.isMenuOpen) closeChatMenu(); else openChatMenu() }
     })
     
 
-    const tokenBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 61, y: 8, w: 135, h: 36, radius: 14, color: 0x1d4ed8 })
-    const tokenBtn = hmUI.createWidget(hmUI.widget.TEXT, { x: 61, y: 8, w: 135, h: 36, text: "300 т", text_size: 12, color: 0xe2e8f0, align_h: hmUI.align.CENTER_H, align_v: hmUI.align.CENTER_V })
+    const tokenBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 100, y: 8, w: 92, h: 40, radius: 14, color: 0x1d4ed8 })
+    const tokenBtn = hmUI.createWidget(hmUI.widget.TEXT, { x: 100, y: 8, w: 92, h: 40, text: "300 т", text_size: 15, color: 0xe2e8f0, align_h: hmUI.align.CENTER_H, align_v: hmUI.align.CENTER_V })
     tokenBtn.addEventListener(hmUI.event.CLICK_UP, () => {
       this.state.tokenIdx = (this.state.tokenIdx + 1) % TOKEN_PRESETS.length
       const i = this.state.tokenIdx
@@ -147,8 +147,37 @@ Page({
       cBtn.setProperty(hmUI.prop.VISIBLE, false); dBtn.setProperty(hmUI.prop.VISIBLE, false); chatSlotBtns.push(cBtn); chatDelBtns.push(dBtn)
     }
     const renderChatSlots = () => { for (let i = 0; i < 5; i++) { const item = this.state.chatList[i]; if (item) { chatSlotBtns[i].setProperty(hmUI.prop.TEXT, item.title); chatSlotBtns[i].setProperty(hmUI.prop.VISIBLE, true); chatDelBtns[i].setProperty(hmUI.prop.VISIBLE, true) } else { chatSlotBtns[i].setProperty(hmUI.prop.VISIBLE, false); chatDelBtns[i].setProperty(hmUI.prop.VISIBLE, false) } } }
-    const openChatMenu = () => { this.state.isMenuOpen = true; this.state.isReading = false; setPageScroll(false); toggleKeyboard(false); positionAnswerBar(bottomY, false); displayBox.setProperty(hmUI.prop.VISIBLE, false); newChatMenuBtn.setProperty(hmUI.prop.VISIBLE, true); messageBuilder.request({ method: "GET_CHATS" }).then((res) => { this.state.chatList = (res && Array.isArray(res.chats)) ? res.chats : []; renderChatSlots() }).catch(() => renderChatSlots()) }
-    const closeChatMenu = () => { this.state.isMenuOpen = false; toggleNewChatDialog(false); newChatMenuBtn.setProperty(hmUI.prop.VISIBLE, false); for (let i = 0; i < 5; i++) { chatSlotBtns[i].setProperty(hmUI.prop.VISIBLE, false); chatDelBtns[i].setProperty(hmUI.prop.VISIBLE, false) } displayBox.setProperty(hmUI.prop.VISIBLE, true); if (this.state.isReading) { const barY = Math.max(bottomY, 52 + this.state.lastTextH + 10); positionAnswerBar(barY, true); setPageScroll(barY + bottomBtnH > H) } else { setPageScroll(false); toggleKeyboard(true) } }
+        const limBtn = hmUI.createWidget(hmUI.widget.BUTTON, { x: 4, y: 322, w: 184, h: 40, text: "Лимиты", text_size: 15, radius: 12, normal_color: 0x14532d, press_color: 0x166534, click_func: () => openLimits() })
+    limBtn.setProperty(hmUI.prop.VISIBLE, false)
+    const limBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 0, y: 0, w: 192, h: 368, color: 0x0b0f14 })
+    const limTitle = hmUI.createWidget(hmUI.widget.TEXT, { x: 10, y: 40, w: 172, h: 30, text: "Лимиты за день", text_size: 16, color: 0xf8fafc })
+    const limTBarBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 10, y: 90, w: 172, h: 16, radius: 8, color: 0x1f2937 })
+    const limTBar = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 10, y: 90, w: 2, h: 16, radius: 8, color: 0x22c55e })
+    const limTText = hmUI.createWidget(hmUI.widget.TEXT, { x: 10, y: 110, w: 172, h: 24, text: "", text_size: 13, color: 0x94a3b8 })
+    const limRBarBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 10, y: 160, w: 172, h: 16, radius: 8, color: 0x1f2937 })
+    const limRBar = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 10, y: 160, w: 2, h: 16, radius: 8, color: 0x3b82f6 })
+    const limRText = hmUI.createWidget(hmUI.widget.TEXT, { x: 10, y: 180, w: 172, h: 24, text: "", text_size: 13, color: 0x94a3b8 })
+    const limClose = hmUI.createWidget(hmUI.widget.BUTTON, { x: 40, y: 300, w: 112, h: 44, text: "Закрыть", text_size: 15, radius: 12, normal_color: 0x2b7fff, press_color: 0x1d4ed8, click_func: () => closeLimits() })
+    const limWidgets = [limBg, limTitle, limTBarBg, limTBar, limTText, limRBarBg, limRBar, limRText, limClose]
+    const setLimVisible = (v) => { for (let i = 0; i < limWidgets.length; i++) limWidgets[i].setProperty(hmUI.prop.VISIBLE, v) }
+    const closeLimits = () => { setLimVisible(false) }
+    const openLimits = () => {
+      toggleNewChatDialog(false)
+      setLimVisible(true)
+      limTText.setProperty(hmUI.prop.TEXT, "Считаю...")
+      limRText.setProperty(hmUI.prop.TEXT, "")
+      messageBuilder.request({ method: "GET_STATS" }).then((s) => {
+        const capT = (s && s.capT) || 100000, capR = (s && s.capR) || 200
+        const t = (s && s.t) || 0, r = (s && s.r) || 0
+        limTBar.setProperty(hmUI.prop.W, Math.max(2, Math.min(172, Math.round(172 * t / capT))))
+        limRBar.setProperty(hmUI.prop.W, Math.max(2, Math.min(172, Math.round(172 * r / capR))))
+        limTText.setProperty(hmUI.prop.TEXT, "Токены: " + t + " / " + capT)
+        limRText.setProperty(hmUI.prop.TEXT, "Запросы: " + r + " / " + capR)
+      }).catch(() => { limTText.setProperty(hmUI.prop.TEXT, "Нет данных") })
+    }
+    setLimVisible(false)
+const openChatMenu = () => { limBtn.setProperty(hmUI.prop.VISIBLE, true); this.state.isMenuOpen = true; this.state.isReading = false; setPageScroll(false); toggleKeyboard(false); positionAnswerBar(bottomY, false); displayBox.setProperty(hmUI.prop.VISIBLE, false); newChatMenuBtn.setProperty(hmUI.prop.VISIBLE, true); messageBuilder.request({ method: "GET_CHATS" }).then((res) => { this.state.chatList = (res && Array.isArray(res.chats)) ? res.chats : []; renderChatSlots() }).catch(() => renderChatSlots()) }
+    const closeChatMenu = () => { limBtn.setProperty(hmUI.prop.VISIBLE, false); closeLimits(); this.state.isMenuOpen = false; toggleNewChatDialog(false); newChatMenuBtn.setProperty(hmUI.prop.VISIBLE, false); for (let i = 0; i < 5; i++) { chatSlotBtns[i].setProperty(hmUI.prop.VISIBLE, false); chatDelBtns[i].setProperty(hmUI.prop.VISIBLE, false) } displayBox.setProperty(hmUI.prop.VISIBLE, true); if (this.state.isReading) { const barY = Math.max(bottomY, 52 + this.state.lastTextH + 10); positionAnswerBar(barY, true); setPageScroll(barY + bottomBtnH > H) } else { setPageScroll(false); toggleKeyboard(true) } }
     const resetToInput = (placeholder) => { this.state.isReading = false; this.state.lastKey = -1; setPageScroll(false); positionAnswerBar(bottomY, false); displayBox.setProperty(hmUI.prop.VISIBLE, true); displayBox.setProperty(hmUI.prop.MORE, { x: 10, y: 52, w: 180, h: promptH, text: this.state.prompt || placeholder, text_size: 16, color: 0x38bdf8 }); toggleKeyboard(true) }
 
     const sendPromptToAI = (textToSend, isRetry) => {
