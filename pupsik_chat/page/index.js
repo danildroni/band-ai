@@ -188,7 +188,7 @@ Page({
 
       const pollAnswer = (attempt) => {
         if (this.state.isReading || this.state.isMenuOpen) return
-        if (attempt > 65) { showScrollableAnswer("Долгий ответ. Нажмите Ещё", 0xf1f5f9); return }
+        if (attempt > 120) { showScrollableAnswer("Долгий ответ. Нажмите Ещё", 0xf1f5f9); return }
         const sec = Math.round(attempt * 1.5)
         displayBox.setProperty(hmUI.prop.TEXT, "Думаю (" + sec + "с)...")
         messageBuilder.request({ method: "CHECK_AI" })

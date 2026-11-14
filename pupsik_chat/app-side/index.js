@@ -3,7 +3,6 @@ import { MessageBuilder } from "../shared/message"
 const messageBuilder = new MessageBuilder()
 const BASE_URL = "http://ВАШ_IP:1235"
 
-let memoryChats = null
 let activeJob = { id: "", done: false, answer: "", chatId: "" }
 
 const loadChats = () => {
@@ -65,31 +64,7 @@ AppSideService({
         saveChats(chats)
         ctx.response({ data: { chats: chats.map((c) => ({ id: c.id, title: c.title })) } })
       }
-
-      if (jsonRpc.method === "CHECK_AI") {
-        if (!activeJob.id) { ctx.response({ data: activeJob }); return }
-        if (activeJob.done) { ctx.response({ data: activeJob }); return }
-        fetch({ url: BASE_URL + "/check?id=" + activeJob.id, method: "GET", timeout: 4000 })
-          .then((res) => {
-            const st = typeof res.body === "string" ? JSON.parse(res.body) : res.body
-            if (st && st.done && st.text) {
-              const out = cleanOutputText(st.text) || st.text
-              let chats = loadChats()
-              let chat = chats.find((c) => c.id === activeJob.chatId)
-              if (chat) {
-                chat.messages.push({ role: "user", content: activeJob.userPrompt })
-                chat.messages.push({ role: "assistant", content: out })
-                saveChats(chats)
-                activeJob.answer = formatChatTranscript(chat.messages)
-              } else {
-                activeJob.answer = "▸ Вы:\n" + activeJob.userPrompt + "\n\n✦ ИИ:\n" + out
-              }
-              activeJob.done = true
-            }
-            ctx.response({ data: activeJob })
-          })
-          .catch(() => ctx.response({ data: activeJob }))
-      }
+      if (jsonRpc.method === "CHECK_AI") ctx.response({ data: activeJob })
 
       if (jsonRpc.method === "ASK_AI") {
         const cleanPrompt = decodeURIComponent(jsonRpc.params.prompt)
@@ -111,7 +86,7 @@ AppSideService({
         }
         saveChats(chats)
 
-        activeJob = { id: jobId, done: false, answer: "", chatId: chat.id, userPrompt: cleanPrompt }
+        activeJob = { id: jobId, done: false, answer: "", chatId: chat.id }
         ctx.response({ data: { status: "STARTED", jobId: jobId } })
 
         const history = chat.noContext
@@ -123,13 +98,42 @@ AppSideService({
           content: "Ты русскоязычный справочник-ассистент на часах. Текущий год 2026. ОБЯЗАТЕЛЬНО учитывай все предыдущие сообщения в диалоге. ПИШИ ТОЛЬКО НА РУССКОМ КИРИЛЛИЦЕЙ без звёздочек и встречных вопросов."
         }
 
-        fetch({
-          url: BASE_URL + "/v1/chat/completions",
-          method: "POST",
-          timeout: 5000,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ job_id: jobId, model: modelId, messages: Array.of(sysMsg).concat(history), temperature: 0.3, max_tokens: maxTokens })
-        }).catch(() => {})
+        fetch({ url: BASE_URL + "/v1/models", method: "GET", timeout: 3000 })
+          .then((mRes) => {
+            const md = typeof mRes.body === "string" ? JSON.parse(mRes.body) : mRes.body
+            const mList = (md && Array.isArray(md.data) ? md.data : []).map((m) => m.id).filter((id) => id && !id.toLowerCase().includes("embed"))
+            return mList.includes(modelId) ? modelId : (mList.length > 0 ? mList.slice(0, 1).pop() : modelId)
+          })
+          .catch(() => modelId)
+          .then((activeModel) => fetch({
+            url: BASE_URL + "/v1/chat/completions",
+            method: "POST",
+            timeout: 90000,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ model: activeModel, messages: Array.of(sysMsg).concat(history), temperature: 0.3, max_tokens: maxTokens })
+          }))
+          .then((res) => {
+            let data = null
+            try { data = typeof res.body === "string" ? JSON.parse(res.body) : res.body } catch (e) {}
+            const choice = (data && Array.isArray(data.choices) && data.choices.length > 0) ? data.choices.slice(0, 1).pop() : null
+            const content = (choice && choice.message && choice.message.content) ? choice.message.content : ""
+
+            if (content) {
+              const out = cleanOutputText(content) || content
+              let freshChats = loadChats()
+              let freshChat = freshChats.find((c) => c.id === chatId) || chat
+              freshChat.messages.push({ role: "user", content: cleanPrompt })
+              freshChat.messages.push({ role: "assistant", content: out })
+              if (!freshChats.find((c) => c.id === chatId)) freshChats.unshift(freshChat)
+              saveChats(freshChats)
+              activeJob = { id: jobId, done: true, answer: formatChatTranscript(freshChat.messages), chatId: freshChat.id }
+            } else {
+              activeJob = { id: jobId, done: true, answer: "Пустой ответ от модели", chatId: chat.id }
+            }
+          })
+          .catch((err) => {
+            activeJob = { id: jobId, done: true, answer: "Ошибка соединения: " + String(err), chatId: chat.id }
+          })
       }
     })
   },
