@@ -5,8 +5,8 @@ const LAYOUTS = {
   NUM: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0+-=", "*/()", ".,?!"]
 }
 const MODES = ["RU", "EN", "NUM"]
-const TOKEN_PRESETS = Array.of(300, 500, 800, 1200, 1600, 2000)
-const TOKEN_COLORS = Array.of(0x1f2937, 0x1e3a5f, 0x1d4ed8, 0x3730a3, 0x5b21b6, 0x701a75)
+const TOKEN_PRESETS = Array.of(150, 300, 500)
+const TOKEN_COLORS = Array.of(0x3730a3, 0x1d4ed8, 0x701a75)
 
 const calcTextHeight = (text) => {
   const paras = String(text || "").split("\n")
@@ -20,7 +20,7 @@ const calcTextHeight = (text) => {
 Page({
   state: {
     prompt: "", lastPrompt: "", lastKey: -1, charIndex: 0, lastTapTime: 0,
-    modeIdx: 0, tokenIdx: 5, modelIdx: 0, models: Array.of("gemma-4-12b"),
+    modeIdx: 0, tokenIdx: 1, modelIdx: 0, models: Array.of("gemma-4-12b"),
     currentChatId: String(Date.now()), noContextMode: false, chatList: [],
     isReading: false, isMenuOpen: false, lastTextH: 200, lastAnswerText: ""
   },
@@ -54,8 +54,8 @@ Page({
     })
     
 
-    const tokenBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 61, y: 8, w: 135, h: 36, radius: 14, color: 0x701a75 })
-    const tokenBtn = hmUI.createWidget(hmUI.widget.TEXT, { x: 61, y: 8, w: 135, h: 36, text: "2000 т", text_size: 12, color: 0xe2e8f0, align_h: hmUI.align.CENTER_H, align_v: hmUI.align.CENTER_V })
+    const tokenBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 61, y: 8, w: 135, h: 36, radius: 14, color: 0x1d4ed8 })
+    const tokenBtn = hmUI.createWidget(hmUI.widget.TEXT, { x: 61, y: 8, w: 135, h: 36, text: "300 т", text_size: 12, color: 0xe2e8f0, align_h: hmUI.align.CENTER_H, align_v: hmUI.align.CENTER_V })
     tokenBtn.addEventListener(hmUI.event.CLICK_UP, () => {
       this.state.tokenIdx = (this.state.tokenIdx + 1) % TOKEN_PRESETS.length
       const i = this.state.tokenIdx
