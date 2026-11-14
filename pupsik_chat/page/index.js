@@ -48,37 +48,11 @@ Page({
     })
     const shortName = (id) => id.replace("-instruct", "").replace("-qat", "").slice(0, 9)
     const chatsBtn = hmUI.createWidget(hmUI.widget.BUTTON, {
-      x: 4, y: 8, w: 54, h: 36, text: "Чаты", text_size: 13, radius: 14,
+      x: 4, y: 8, w: 192, h: 36, text: "Чаты", text_size: 13, radius: 14,
       normal_color: 0x1c212b, press_color: 0x2d3646,
       click_func: () => { if (this.state.isMenuOpen) closeChatMenu(); else openChatMenu() }
     })
-    const modelBtn = hmUI.createWidget(hmUI.widget.BUTTON, {
-      x: 61, y: 8, w: 84, h: 36, text: "Модель", text_size: 12, radius: 14,
-      normal_color: 0x1c212b, press_color: 0x2d3646,
-      click_func: () => {
-        this.state.modelIdx = (this.state.modelIdx + 1) % this.state.models.length
-        modelBtn.setProperty(hmUI.prop.TEXT, shortName(this.state.models[this.state.modelIdx]))
-      }
-    })
-    const loadBtn = hmUI.createWidget(hmUI.widget.BUTTON, {
-      x: 148, y: 8, w: 42, h: 36, text: "Загр", text_size: 12, radius: 14,
-      normal_color: 0x252c38, press_color: 0x3b4659,
-      click_func: () => {
-        const cur = this.state.models[this.state.modelIdx]
-        setPageScroll(false)
-        displayBox.setProperty(hmUI.prop.MORE, { x: 10, y: 52, w: 180, h: promptH, text: "Загрузка модели:\n" + cur, text_size: 15, color: 0x94a3b8 })
-        messageBuilder.request({ method: "LOAD_MODEL", params: { model: cur } })
-          .then((res) => displayBox.setProperty(hmUI.prop.TEXT, (res && res.msg) ? res.msg : "Модель готова"))
-          .catch((e) => displayBox.setProperty(hmUI.prop.TEXT, String(e)))
-      }
-    })
-    messageBuilder.request({ method: "GET_MODELS" })
-      .then((res) => {
-        if (res && Array.isArray(res.models) && res.models.length > 0) {
-          this.state.models = res.models
-          modelBtn.setProperty(hmUI.prop.TEXT, shortName(this.state.models))
-        }
-      }).catch(() => {})
+    
 
     const tokenBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 4, y: bottomY, w: 58, h: bottomBtnH, radius: 14, color: 0x1e3a5f })
     const tokenBtn = hmUI.createWidget(hmUI.widget.TEXT, { x: 4, y: bottomY, w: 58, h: bottomBtnH, text: "500 т", text_size: 14, color: 0xe2e8f0, align_h: hmUI.align.CENTER_H, align_v: hmUI.align.CENTER_V })
