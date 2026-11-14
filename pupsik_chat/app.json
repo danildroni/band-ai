@@ -1,12 +1,12 @@
 {
   "configVersion": "v2",
   "app": {
-    "appId": 20196,
+    "appId": 20260,
     "appName": "pupsik_chat",
     "appType": "app",
     "version": {
       "code": 1,
-      "name": "1.0.1"
+      "name": "PupsikAI"
     },
     "icon": "icon.png",
     "vender": "zepp",
@@ -34,7 +34,7 @@
       },
       "platforms": [
         {
-          "name": "Bari(国际标准版本)",
+          "name": "PupsikAI",
           "deviceSource": 254,
           "chip": "DIALOG"
         }
