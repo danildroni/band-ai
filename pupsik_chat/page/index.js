@@ -20,7 +20,7 @@ const calcTextHeight = (text) => {
 Page({
   state: {
     prompt: "", lastPrompt: "", lastKey: -1, charIndex: 0, lastTapTime: 0,
-    modeIdx: 0, tokenIdx: 1, modelIdx: 0, models: Array.of("gemma-4-12b"),
+    modeIdx: 0, tokenIdx: 5, modelIdx: 0, models: Array.of("gemma-4-12b"),
     currentChatId: String(Date.now()), noContextMode: false, chatList: [],
     isReading: false, isMenuOpen: false, lastTextH: 200, lastAnswerText: ""
   },
@@ -48,14 +48,14 @@ Page({
     })
     const shortName = (id) => id.replace("-instruct", "").replace("-qat", "").slice(0, 9)
     const chatsBtn = hmUI.createWidget(hmUI.widget.BUTTON, {
-      x: 4, y: 8, w: 192, h: 36, text: "Чаты", text_size: 13, radius: 14,
+      x: 4, y: 8, w: 54, h: 36, text: "Чаты", text_size: 13, radius: 14,
       normal_color: 0x1c212b, press_color: 0x2d3646,
       click_func: () => { if (this.state.isMenuOpen) closeChatMenu(); else openChatMenu() }
     })
     
 
-    const tokenBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 4, y: bottomY, w: 58, h: bottomBtnH, radius: 14, color: 0x1e3a5f })
-    const tokenBtn = hmUI.createWidget(hmUI.widget.TEXT, { x: 4, y: bottomY, w: 58, h: bottomBtnH, text: "500 т", text_size: 14, color: 0xe2e8f0, align_h: hmUI.align.CENTER_H, align_v: hmUI.align.CENTER_V })
+    const tokenBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 61, y: 8, w: 135, h: 36, radius: 14, color: 0x701a75 })
+    const tokenBtn = hmUI.createWidget(hmUI.widget.TEXT, { x: 61, y: 8, w: 135, h: 36, text: "2000 т", text_size: 12, color: 0xe2e8f0, align_h: hmUI.align.CENTER_H, align_v: hmUI.align.CENTER_V })
     tokenBtn.addEventListener(hmUI.event.CLICK_UP, () => {
       this.state.tokenIdx = (this.state.tokenIdx + 1) % TOKEN_PRESETS.length
       const i = this.state.tokenIdx
@@ -63,8 +63,8 @@ Page({
       tokenBtn.setProperty(hmUI.prop.TEXT, String(TOKEN_PRESETS[i]) + " т")
     })
 
-    const retryBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 66, y: bottomY, w: 56, h: bottomBtnH, radius: 14, color: 0x1c212b })
-    const retryBtn = hmUI.createWidget(hmUI.widget.TEXT, { x: 66, y: bottomY, w: 56, h: bottomBtnH, text: "Ещё", text_size: 14, color: 0xe2e8f0, align_h: hmUI.align.CENTER_H, align_v: hmUI.align.CENTER_V })
+    const retryBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 4, y: bottomY, w: 92, h: bottomBtnH, radius: 14, color: 0x1c212b })
+    const retryBtn = hmUI.createWidget(hmUI.widget.TEXT, { x: 4, y: bottomY, w: 92, h: bottomBtnH, text: "Ещё", text_size: 14, color: 0xe2e8f0, align_h: hmUI.align.CENTER_H, align_v: hmUI.align.CENTER_V })
     retryBtn.addEventListener(hmUI.event.CLICK_UP, () => {
       displayBox.setProperty(hmUI.prop.TEXT, "Проверяю...")
       messageBuilder.request({ method: "CHECK_AI" }).then((st) => {
@@ -83,15 +83,15 @@ Page({
       })
     })
 
-    const backBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 126, y: bottomY, w: 64, h: bottomBtnH, radius: 14, color: 0x2b7fff })
-    const backBtn = hmUI.createWidget(hmUI.widget.TEXT, { x: 126, y: bottomY, w: 64, h: bottomBtnH, text: "Ответ", text_size: 14, color: 0xffffff, align_h: hmUI.align.CENTER_H, align_v: hmUI.align.CENTER_V })
+    const backBg = hmUI.createWidget(hmUI.widget.FILL_RECT, { x: 100, y: bottomY, w: 96, h: bottomBtnH, radius: 14, color: 0x2b7fff })
+    const backBtn = hmUI.createWidget(hmUI.widget.TEXT, { x: 100, y: bottomY, w: 96, h: bottomBtnH, text: "Ответ", text_size: 14, color: 0xffffff, align_h: hmUI.align.CENTER_H, align_v: hmUI.align.CENTER_V })
     backBtn.addEventListener(hmUI.event.CLICK_UP, () => {
       this.state.prompt = ""
       resetToInput("Продолжите диалог:")
     })
 
     const positionAnswerBar = (barY, show) => {
-      const widgets = Array.of(tokenBg, tokenBtn, retryBg, retryBtn, backBg, backBtn)
+      const widgets = Array.of(retryBg, retryBtn, backBg, backBtn)
       for (let i = 0; i < widgets.length; i++) {
         widgets[i].setProperty(hmUI.prop.Y, barY)
         widgets[i].setProperty(hmUI.prop.VISIBLE, show)
