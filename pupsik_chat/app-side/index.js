@@ -1,7 +1,7 @@
 import { MessageBuilder } from "../shared/message"
 
 const messageBuilder = new MessageBuilder()
-const BASE_URL = "http://ВАШ_IP:1235"
+const PROXY_HOST = "https://long-snow-d028.danildroni10.workers.dev"
 
 let activeJob = { id: "", done: false, answer: "", chatId: "" }
 
@@ -36,7 +36,7 @@ const getLastUserPrompt = (messages) => {
 }
 
 const cleanOutputText = (rawText) => {
-  return String(rawText || "").replace(/[\u4e00-\u9fff]/g, "").replace(/[*#_`~]/g, "").replace(/\n{3,}/g, "\n\n").trim()
+  return String(rawText || "").replace(/[*#_`~]/g, "").replace(/\n{3,}/g, "\n\n").trim()
 }
 
 AppSideService({
@@ -44,16 +44,8 @@ AppSideService({
     messageBuilder.listen(() => {})
     messageBuilder.on("request", (ctx) => {
       const jsonRpc = messageBuilder.buf2Json(ctx.request.payload)
-
-      if (jsonRpc.method === "GET_MODELS") {
-        fetch({ url: BASE_URL + "/v1/models", method: "GET", timeout: 4000 })
-          .then((res) => {
-            const d = typeof res.body === "string" ? JSON.parse(res.body) : res.body
-            const list = (d && Array.isArray(d.data) ? d.data : []).map((m) => m.id).filter((id) => id && !id.toLowerCase().includes("embed"))
-            ctx.response({ data: { models: list.length ? list : Array.of("google/gemma-4-12b-qat") } })
-          }).catch(() => ctx.response({ data: { models: Array.of("google/gemma-4-12b-qat") } }))
-      }
-
+      if (jsonRpc.method === "GET_MODELS") ctx.response({ data: { models: Array.of("gemini-2.5-flash", "gemini-2.5-flash-lite") } })
+      if (jsonRpc.method === "LOAD_MODEL") ctx.response({ data: { msg: "Активна: " + String(jsonRpc.params.model || "gemini-2.5-flash") } })
       if (jsonRpc.method === "GET_CHATS") ctx.response({ data: { chats: loadChats().map((c) => ({ id: c.id, title: c.title })) } })
       if (jsonRpc.method === "OPEN_CHAT") {
         const found = loadChats().find((c) => c.id === jsonRpc.params.chatId)
@@ -67,9 +59,11 @@ AppSideService({
       if (jsonRpc.method === "CHECK_AI") ctx.response({ data: activeJob })
 
       if (jsonRpc.method === "ASK_AI") {
-        const cleanPrompt = decodeURIComponent(jsonRpc.params.prompt)
+        let cleanPrompt = String(jsonRpc.params.prompt || "").trim()
+        try { if (cleanPrompt.includes("%")) cleanPrompt = decodeURIComponent(cleanPrompt).trim() } catch (e) {}
         const maxTokens = Number(jsonRpc.params.max_tokens) || 500
-        const modelId = jsonRpc.params.model || "google/gemma-4-12b-qat"
+        const rawModel = String(jsonRpc.params.model || "gemini-2.5-flash")
+        const modelId = rawModel.startsWith("gemini-") ? rawModel : "gemini-2.5-flash"
         const chatId = jsonRpc.params.chatId || String(Date.now())
         const isRetry = Boolean(jsonRpc.params.isRetry)
         const noContext = Boolean(jsonRpc.params.noContext)
@@ -93,30 +87,28 @@ AppSideService({
           ? Array.of({ role: "user", content: cleanPrompt })
           : chat.messages.slice(-16).concat(Array.of({ role: "user", content: cleanPrompt }))
 
-        const sysMsg = {
-          role: "system",
-          content: "Ты русскоязычный справочник-ассистент на часах. Текущий год 2026. ОБЯЗАТЕЛЬНО учитывай все предыдущие сообщения в диалоге. ПИШИ ТОЛЬКО НА РУССКОМ КИРИЛЛИЦЕЙ без звёздочек и встречных вопросов."
-        }
+        const contents = history.map((m) => ({
+          role: m.role === "assistant" ? "model" : "user",
+          parts: Array.of({ text: m.content })
+        }))
 
-        fetch({ url: BASE_URL + "/v1/models", method: "GET", timeout: 3000 })
-          .then((mRes) => {
-            const md = typeof mRes.body === "string" ? JSON.parse(mRes.body) : mRes.body
-            const mList = (md && Array.isArray(md.data) ? md.data : []).map((m) => m.id).filter((id) => id && !id.toLowerCase().includes("embed"))
-            return mList.includes(modelId) ? modelId : (mList.length > 0 ? mList.slice(0, 1).pop() : modelId)
+        fetch({
+          url: PROXY_HOST + "/v1beta/models/" + modelId + ":generateContent",
+          method: "POST",
+          timeout: 15000,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: { parts: Array.of({ text: "Ты умный русскоязычный ассистент на часах. Текущий год 2026. Учитывай историю чата. Отвечай чётко, по-русски без markdown-звёздочек и лишних вступлений." }) },
+            contents: contents,
+            generationConfig: { temperature: 0.3, maxOutputTokens: maxTokens }
           })
-          .catch(() => modelId)
-          .then((activeModel) => fetch({
-            url: BASE_URL + "/v1/chat/completions",
-            method: "POST",
-            timeout: 90000,
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ model: activeModel, messages: Array.of(sysMsg).concat(history), temperature: 0.3, max_tokens: maxTokens })
-          }))
+        })
           .then((res) => {
             let data = null
             try { data = typeof res.body === "string" ? JSON.parse(res.body) : res.body } catch (e) {}
-            const choice = (data && Array.isArray(data.choices) && data.choices.length > 0) ? data.choices.slice(0, 1).pop() : null
-            const content = (choice && choice.message && choice.message.content) ? choice.message.content : ""
+            const cand = (data && Array.isArray(data.candidates) && data.candidates.length > 0) ? data.candidates.slice(0, 1).pop() : null
+            const parts = (cand && cand.content && Array.isArray(cand.content.parts)) ? cand.content.parts : []
+            const content = parts.map((p) => p.text || "").join("")
 
             if (content) {
               const out = cleanOutputText(content) || content
@@ -128,11 +120,12 @@ AppSideService({
               saveChats(freshChats)
               activeJob = { id: jobId, done: true, answer: formatChatTranscript(freshChat.messages), chatId: freshChat.id }
             } else {
-              activeJob = { id: jobId, done: true, answer: "Пустой ответ от модели", chatId: chat.id }
+              const errMsg = (data && data.error && data.error.message) ? data.error.message : ("HTTP " + String(res.status))
+              activeJob = { id: jobId, done: true, answer: "Ошибка Gemini: " + errMsg, chatId: chat.id }
             }
           })
           .catch((err) => {
-            activeJob = { id: jobId, done: true, answer: "Ошибка соединения: " + String(err), chatId: chat.id }
+            activeJob = { id: jobId, done: true, answer: "Ошибка прокси: " + String(err), chatId: chat.id }
           })
       }
     })
